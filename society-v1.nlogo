@@ -3,39 +3,29 @@ globals[counter all-went-workplace]
 breed [employees employee]
 breed [houses house]
 breed [workplaces workplace]
+breed [supermarkets supermarket]
+breed [busses bus]
 
 houses-own[family-number]
 workplaces-own[workplace-number]
-employees-own[family-number workplace-number diagnosis]
-
-;;Randomly place the houses in the area based on input 'number-of-houses'
-;;Randomly place work-places in the area based on input 'number-of-workplaces'
-;;We can change the number of employees per house using 'employees-per-house'
-;;
-;;We can set the initial infected count using 'initial-infected'
-;;We can change the spread rate using 'spread-rate'
-;;
-;;Currently model works for only one iteration : goto workplace and go back home.
-;;
-;;Total number of employees will be based on employees per house and number
-;;of houses. Currently all the employees including infected and non infected
-;;employees leave the houses and goto work. Then come back to the same home
-;;assigned. The infection is spread when a non-infected person meets a
-;;infected person. And it may depend on the spread-rate and the distance of
-;;infected person with the non infected person.
+employees-own[family-number workplace-number diagnosis where-now]
 
 to setup
   clear-all
   build-houses
+  build-supermarkets
   build-workplaces
   assign-workplace-to-employees
+  make-transport-services
   reset-ticks
 end
 
 to go
-  move-to-workplace
-  if ticks >= 200
-    [move-from-workplace-to-home]
+  (ifelse
+    ticks < 1500 [move-to-workplace]
+    ticks < 1600 [ ]
+    ticks < 3100 [move-from-workplace-to-home]
+    [stop])
   tick
 end
 
@@ -55,11 +45,29 @@ to build-workplaces
   set-default-shape workplaces "house"
   set counter 1
   create-workplaces number-of-workplaces[
-    set size 3
+    set size 6
     setxy random-xcor random-ycor
     set workplace-number counter
     set counter counter + 1
     set color yellow
+  ]
+end
+
+to build-supermarkets
+  set-default-shape supermarkets "house"
+  create-supermarkets number-of-supermarkets[
+    set size 5
+    setxy random-xcor random-ycor
+    set color blue
+  ]
+end
+
+to make-transport-services
+  set-default-shape busses "car"
+  create-busses number-of-busses[
+    set size 8
+    setxy random-xcor random-ycor
+    set color green
   ]
 end
 
@@ -70,6 +78,7 @@ to assign-workplace-to-employees
       set shape "person"
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
+      set where-now "home"
       ifelse counter > 0
         [set color red]
         [set color white]
@@ -80,15 +89,15 @@ end
 
 to move-to-workplace
   ask employees [
-    let workplace-place one-of workplaces with [workplace-number = [workplace-number] of myself]
-    face workplace-place
-    ifelse any? workplaces in-radius 2
-      [stop]
-      [forward 1]
-    let rate random 100
-    if rate <= spread-rate * 100 [
-      spread-disease
-    ]
+    let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
+    face employee-workplace
+    (ifelse any?
+      workplaces in-radius 2 [
+        set where-now "workplace"
+        stop
+      ]
+      [forward 0.2])
+    spread-disease
   ]
 end
 
@@ -96,30 +105,32 @@ to move-from-workplace-to-home
   ask employees [
     let family-place one-of houses with [family-number = [family-number] of myself]
     face family-place
-    forward 1
-    ifelse any? houses in-radius 2
-      [stop]
-      [forward 1]
-    let rate random 100
-    if rate <= spread-rate * 100 [
-      spread-disease
-    ]
+    (ifelse
+      any? houses in-radius 1 [
+        set where-now "home"
+        stop
+      ]
+      [forward 0.2])
+    spread-disease
   ]
 end
 
 to spread-disease
-  if any? employees with [color = red] in-radius 1
-    [set color red]
+  if random 100 <= spread-rate * 100 [
+    if any? employees with [color = red] in-radius 0.5 [
+      set color red
+    ]
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-315
+538
 10
-928
-624
+1269
+742
 -1
 -1
-5.0
+3.0
 1
 10
 1
@@ -129,12 +140,12 @@ GRAPHICS-WINDOW
 0
 0
 1
--60
-60
--60
-60
-1
-1
+-120
+120
+-120
+120
+0
+0
 1
 ticks
 30.0
@@ -182,7 +193,7 @@ number-of-workplaces
 number-of-workplaces
 1
 100
-50.0
+10.0
 1
 1
 NIL
@@ -197,7 +208,7 @@ number-of-houses
 number-of-houses
 1
 500
-240.0
+100.0
 1
 1
 NIL
@@ -212,7 +223,7 @@ employees-per-house
 employees-per-house
 1
 4
-2.0
+4.0
 1
 1
 NIL
@@ -265,7 +276,7 @@ INPUTBOX
 306
 148
 initial-infected
-4.0
+10.0
 1
 0
 Number
@@ -285,10 +296,65 @@ spread-rate
 NIL
 HORIZONTAL
 
+SLIDER
+276
+200
+511
+233
+number-of-supermarkets
+number-of-supermarkets
+1
+20
+4.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+284
+249
+471
+282
+number-of-busses
+number-of-busses
+1
+20
+5.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+34
+538
+203
+583
+infected percentage (%)
+count employees with [color = red] / ( number-of-houses * employees-per-house ) * 100
+2
+1
+11
+
 @#$#@#$#@
 ## WHAT IS IT?
 
-(a general understanding of what the model is trying to show or explain)
+;;Randomly place the houses in the area based on input 'number-of-houses'
+;;Randomly place work-places in the area based on input 'number-of-workplaces'
+;;We can change the number of employees per house using 'employees-per-house'
+;;
+;;We can set the initial infected count using 'initial-infected'
+;;We can change the spread rate using 'spread-rate'
+;;
+;;Currently model works for only one iteration : goto workplace and go back home.
+;;
+;;Total number of employees will be based on employees per house and number
+;;of houses. Currently all the employees including infected and non infected
+;;employees leave the houses and goto work. Then come back to the same home
+;;assigned. The infection is spread when a non-infected person meets a
+;;infected person. And it may depend on the spread-rate and the distance of
+;;infected person with the non infected person.
 
 ## HOW IT WORKS
 
