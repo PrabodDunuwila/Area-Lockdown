@@ -1,4 +1,4 @@
-globals[counter all-went-workplace]
+globals[counter employee-at-home]
 
 breed [employees employee]
 breed [houses house]
@@ -21,15 +21,15 @@ to setup
 end
 
 to go
-  (ifelse
-    ticks < 1500 [move-to-workplace]
-    ticks < 1600 [ ]
-    ticks < 3100 [move-from-workplace-to-home]
-    [stop])
   move-transport-services
+  ifelse employee-at-home = "true"
+    [move-to-workplace]
+    [move-from-workplace-to-home]
   tick
 end
 
+;;Build houses in random coordinates.
+;;Use a counter to set a unique 'family-number' for each house.
 to build-houses
   set-default-shape houses "house"
   set counter 1
@@ -42,6 +42,8 @@ to build-houses
   ]
 end
 
+;;Build workplaces in random coordinates.
+;;Use a counter to set a unique 'workplace-number' for each workplace.
 to build-workplaces
   set-default-shape workplaces "house"
   set counter 1
@@ -54,6 +56,7 @@ to build-workplaces
   ]
 end
 
+;;Build supermarkets in random coordinates.
 to build-supermarkets
   set-default-shape supermarkets "house"
   create-supermarkets number-of-supermarkets[
@@ -63,6 +66,7 @@ to build-supermarkets
   ]
 end
 
+;;Place busses in random coordinates.
 to make-transport-services
   set-default-shape busses "car"
   create-busses number-of-busses[
@@ -72,6 +76,7 @@ to make-transport-services
   ]
 end
 
+;;Move 'bus' agents randomly
 to move-transport-services
   ask busses [
     right random 50
@@ -80,14 +85,21 @@ to move-transport-services
   ]
 end
 
+;;Each house hatch employees based on 'employees-per-house'
+;;Employee 'family-number' is based on the house 'family-number' which employee is hatched
+;;Each employee is assigned a random workplace
+;;There are 2 types of employees, who travels by car(shape: car, has-car: true) and others walk(shape: person)
+;;Initial infected will be based on 'initial-infected'
 to assign-workplace-to-employees
   set counter initial-infected
+  set employee-at-home "true"
   ask houses [
     hatch-employees employees-per-house [
       set shape "person"
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
-      if random 100 < 40 [
+      set where-now "home"
+      if random 100 < private-transport [
         set has-car "true"
         set shape "car"
         set size 3
@@ -100,6 +112,12 @@ to assign-workplace-to-employees
   ]
 end
 
+;;Get each employee 'workplace-number' and employee will face the the direction of workplace
+;;When employee arrives to workplace, he will stop
+;;If that employee is of shape car, then shape will change to a person
+;;Otherwise if it is a person moves with speed of 0.2 and for car speed is 0.8
+;;At each tick 'spread-disease' is called
+;;Global variable is changed based on all employee location
 to move-to-workplace
   ask employees [
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
@@ -109,23 +127,7 @@ to move-to-workplace
         if has-car = "true" [
           set shape "person"
         ]
-        stop
-      ]
-      [
-        (ifelse shape = "person"
-          [forward 0.2]
-          [forward 0.6])
-      ])
-    spread-disease
-  ]
-end
-
-to move-from-workplace-to-home
-  ask employees [
-    let family-place one-of houses with [family-number = [family-number] of myself]
-    face family-place
-    (ifelse
-      any? houses in-radius 1 [
+        set where-now "workplace"
         stop
       ]
       [
@@ -139,8 +141,47 @@ to move-from-workplace-to-home
       ])
     spread-disease
   ]
+  if all? employees [where-now = "workplace"] [
+    set employee-at-home "false"
+  ]
 end
 
+;;Get each employee 'family-number' and employee will face the the direction of house
+;;When employee arrives to house, he will stop
+;;If that employee is of shape car, then shape will change to a person
+;;Otherwise if it is a person moves with speed of 0.2 and for car speed is 0.8
+;;At each tick 'spread-disease' is called
+;;Global variable is changed based on all employee location
+to move-from-workplace-to-home
+  ask employees [
+    let family-place one-of houses with [family-number = [family-number] of myself]
+    face family-place
+    (ifelse
+      any? houses in-radius 1 [
+        if has-car = "true" [
+          set shape "person"
+        ]
+        set where-now "home"
+        stop
+      ]
+      [
+        (ifelse has-car = "true"
+          [
+            set shape "car"
+            set size 3
+            forward 0.8
+          ]
+          [forward 0.2])
+      ])
+    spread-disease
+  ]
+  if all? employees [where-now = "home"] [
+    set employee-at-home "true"
+  ]
+end
+
+;;Any employee is in the radius of another with color red and shape person
+;;based on the 'spread-rate' the healthy employees will infected.
 to spread-disease
   if any? employees with [color = red and shape = "person"] in-radius 0.5 [
     if random 100 < spread-rate * 100 [
@@ -219,7 +260,7 @@ number-of-workplaces
 number-of-workplaces
 1
 100
-10.0
+25.0
 1
 1
 NIL
@@ -234,7 +275,7 @@ number-of-houses
 number-of-houses
 1
 500
-50.0
+100.0
 1
 1
 NIL
@@ -362,6 +403,21 @@ count employees with [color = red] / ( number-of-houses * employees-per-house ) 
 2
 1
 11
+
+SLIDER
+233
+67
+431
+100
+private-transport
+private-transport
+0
+100
+30.0
+1
+1
+%
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
