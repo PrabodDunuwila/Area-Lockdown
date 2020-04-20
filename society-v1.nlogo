@@ -8,7 +8,7 @@ breed [busses bus]
 
 houses-own[family-number]
 workplaces-own[workplace-number]
-employees-own[family-number workplace-number diagnosis where-now]
+employees-own[family-number workplace-number diagnosis where-now has-car]
 
 to setup
   clear-all
@@ -26,6 +26,7 @@ to go
     ticks < 1600 [ ]
     ticks < 3100 [move-from-workplace-to-home]
     [stop])
+  move-transport-services
   tick
 end
 
@@ -71,6 +72,14 @@ to make-transport-services
   ]
 end
 
+to move-transport-services
+  ask busses [
+    right random 50
+    left random 50
+    forward 1
+  ]
+end
+
 to assign-workplace-to-employees
   set counter initial-infected
   ask houses [
@@ -78,7 +87,11 @@ to assign-workplace-to-employees
       set shape "person"
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
-      set where-now "home"
+      if random 100 < 40 [
+        set has-car "true"
+        set shape "car"
+        set size 3
+      ]
       ifelse counter > 0
         [set color red]
         [set color white]
@@ -91,12 +104,18 @@ to move-to-workplace
   ask employees [
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
     face employee-workplace
-    (ifelse any?
-      workplaces in-radius 2 [
-        set where-now "workplace"
+    (ifelse
+      any? workplaces in-radius 2 [
+        if has-car = "true" [
+          set shape "person"
+        ]
         stop
       ]
-      [forward 0.2])
+      [
+        (ifelse shape = "person"
+          [forward 0.2]
+          [forward 0.6])
+      ])
     spread-disease
   ]
 end
@@ -107,27 +126,34 @@ to move-from-workplace-to-home
     face family-place
     (ifelse
       any? houses in-radius 1 [
-        set where-now "home"
         stop
       ]
-      [forward 0.2])
+      [
+        (ifelse has-car = "true"
+          [
+            set shape "car"
+            set size 3
+            forward 0.8
+          ]
+          [forward 0.2])
+      ])
     spread-disease
   ]
 end
 
 to spread-disease
-  if random 100 <= spread-rate * 100 [
-    if any? employees with [color = red] in-radius 0.5 [
+  if any? employees with [color = red and shape = "person"] in-radius 0.5 [
+    if random 100 < spread-rate * 100 [
       set color red
     ]
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-538
-10
-1269
-742
+465
+11
+1196
+743
 -1
 -1
 3.0
@@ -144,17 +170,17 @@ GRAPHICS-WINDOW
 120
 -120
 120
-0
-0
+1
+1
 1
 ticks
 30.0
 
 BUTTON
-28
-39
-101
-72
+22
+10
+107
+55
 NIL
 setup
 NIL
@@ -168,10 +194,10 @@ NIL
 1
 
 BUTTON
-126
-39
-189
-72
+21
+62
+106
+106
 NIL
 go
 T
@@ -185,10 +211,10 @@ NIL
 1
 
 SLIDER
-17
-186
-214
-219
+16
+210
+213
+243
 number-of-workplaces
 number-of-workplaces
 1
@@ -200,15 +226,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-14
-88
-213
-121
+17
+116
+216
+149
 number-of-houses
 number-of-houses
 1
 500
-100.0
+50.0
 1
 1
 NIL
@@ -216,24 +242,24 @@ HORIZONTAL
 
 SLIDER
 16
-136
+161
 213
-169
+194
 employees-per-house
 employees-per-house
 1
 4
-4.0
+2.0
 1
 1
 NIL
 HORIZONTAL
 
 PLOT
-17
-305
-303
-455
+14
+265
+435
+449
 Diagnosis 
 time
 count
@@ -249,9 +275,9 @@ PENS
 "not-infected" 1.0 0 -10899396 true "" "plot count employees with [color = white]"
 
 MONITOR
-19
+12
 475
-155
+108
 520
 infected count
 count employees with [color = red]
@@ -260,10 +286,10 @@ count employees with [color = red]
 11
 
 MONITOR
-166
-474
-298
-519
+121
+475
+253
+520
 not-infected count
 count employees with [color = white]
 0
@@ -271,10 +297,10 @@ count employees with [color = white]
 11
 
 INPUTBOX
-221
-88
-306
-148
+133
+10
+212
+106
 initial-infected
 10.0
 1
@@ -282,10 +308,10 @@ initial-infected
 Number
 
 SLIDER
-17
-237
-216
-270
+233
+116
+432
+149
 spread-rate
 spread-rate
 0
@@ -297,10 +323,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-276
-200
-511
 233
+162
+433
+195
 number-of-supermarkets
 number-of-supermarkets
 1
@@ -312,10 +338,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-284
-249
-471
-282
+233
+211
+433
+244
 number-of-busses
 number-of-busses
 1
@@ -327,10 +353,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-34
-538
-203
-583
+267
+475
+436
+520
 infected percentage (%)
 count employees with [color = red] / ( number-of-houses * employees-per-house ) * 100
 2
