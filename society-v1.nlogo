@@ -1,4 +1,4 @@
-globals[counter employee-at-home]
+globals[counter employee-at-home where-busses]
 
 breed [employees employee]
 breed [houses house]
@@ -8,7 +8,8 @@ breed [busses bus]
 
 houses-own[family-number]
 workplaces-own[workplace-number]
-employees-own[family-number workplace-number diagnosis where-now has-car]
+employees-own[family-number workplace-number diagnosis where-now has-car movement]
+busses-own[bus-number x-cor y-cor]
 
 to setup
   clear-all
@@ -21,7 +22,8 @@ to setup
 end
 
 to go
-  move-transport-services
+  if ticks < 8000 [move-transport-services-towards-center]
+  if ticks >= 8000 [move-transport-services-awayfrom-center]
   ifelse employee-at-home = "true"
     [move-to-workplace]
     [move-from-workplace-to-home]
@@ -34,7 +36,7 @@ to build-houses
   set-default-shape houses "house"
   set counter 1
   create-houses number-of-houses[
-    set size 2
+    set size 1
     setxy random-xcor random-ycor
     set family-number counter
     set counter counter + 1
@@ -42,14 +44,16 @@ to build-houses
   ]
 end
 
-;;Build workplaces in random coordinates.
+;;Build workplaces in random coordinates closer to center.
 ;;Use a counter to set a unique 'workplace-number' for each workplace.
 to build-workplaces
   set-default-shape workplaces "house"
   set counter 1
   create-workplaces number-of-workplaces[
-    set size 6
-    setxy random-xcor random-ycor
+    set size 1.5
+    let x random 20 - random 20
+    let y random 20 - random 20
+    setxy x y
     set workplace-number counter
     set counter counter + 1
     set color yellow
@@ -60,8 +64,10 @@ end
 to build-supermarkets
   set-default-shape supermarkets "house"
   create-supermarkets number-of-supermarkets[
-    set size 5
-    setxy random-xcor random-ycor
+    set size 1.5
+    let x random 20 - random 20
+    let y random 20 - random 20
+    setxy x y
     set color blue
   ]
 end
@@ -69,19 +75,59 @@ end
 ;;Place busses in random coordinates.
 to make-transport-services
   set-default-shape busses "car"
-  create-busses number-of-busses[
-    set size 8
-    setxy random-xcor random-ycor
+  create-busses 1[
+    set size 2
+    setxy 25 25
     set color green
+    set bus-number "1"
+    set x-cor 25
+    set y-cor 25
+  ]
+  create-busses 1[
+    set size 2
+    setxy 25 -25
+    set color green
+    set bus-number "2"
+    set x-cor 25
+    set y-cor -25
+  ]
+  create-busses 1[
+    set size 2
+    setxy -25 -25
+    set color green
+    set bus-number "3"
+    set x-cor -25
+    set y-cor -25
+  ]
+  create-busses 1[
+    set size 2
+    setxy -25 25
+    set color green
+    set bus-number "4"
+    set x-cor -25
+    set y-cor 25
   ]
 end
 
-;;Move 'bus' agents randomly
-to move-transport-services
+;;Move 'busses' towards center
+to move-transport-services-towards-center
+  let count-emp [ count employees with [has-car = "false" and movement = "walking"] in-radius 8 ] of busses
   ask busses [
-    right random 50
-    left random 50
-    forward 1
+    let count-emp-bus [ count employees with [has-car = "false" and movement = "walking"] in-radius 1.5 ] of busses
+    (ifelse count-emp-bus = count-emp
+      [
+        face patch 0 0
+        forward 1
+      ]
+      [stop])
+  ]
+end
+
+;;Move 'busses' away from center
+to move-transport-services-awayfrom-center
+  ask busses [
+    face patch x-cor y-cor
+    forward 0.1
   ]
 end
 
@@ -99,11 +145,9 @@ to assign-workplace-to-employees
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
       set where-now "home"
-      if random 100 < private-transport [
-        set has-car "true"
-        set shape "car"
-        set size 3
-      ]
+      (ifelse random 100 < private-transport
+        [set has-car "true"]
+        [set has-car "false"])
       ifelse counter > 0
         [set color red]
         [set color white]
@@ -115,7 +159,7 @@ end
 ;;Get each employee 'workplace-number' and employee will face the the direction of workplace
 ;;When employee arrives to workplace, he will stop
 ;;If that employee is of shape car, then shape will change to a person
-;;Otherwise if it is a person moves with speed of 0.2 and for car speed is 0.8
+;;Otherwise if it is a person moves with speed of 0.01 and for car speed is 0.1
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-to-workplace
@@ -123,21 +167,40 @@ to move-to-workplace
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
     face employee-workplace
     (ifelse
-      any? workplaces in-radius 2 [
+      any? workplaces in-radius 1 [
         if has-car = "true" [
           set shape "person"
         ]
         set where-now "workplace"
+        set movement "idle"
         stop
       ]
       [
         (ifelse has-car = "true"
           [
             set shape "car"
-            set size 3
-            forward 0.8
+            set size 1
+            set movement "driving"
+            forward 0.1
           ]
-          [forward 0.2])
+          [
+            (ifelse
+              any? busses in-radius 0.5
+              [
+                stop
+              ]
+              any? busses in-radius 8
+              [
+                set color yellow
+                set heading towards one-of busses in-radius 8
+                set movement "walking"
+                forward 1
+              ]
+              [
+                set movement "walking"
+                forward 0.01
+              ])
+        ])
       ])
     spread-disease
   ]
@@ -149,7 +212,7 @@ end
 ;;Get each employee 'family-number' and employee will face the the direction of house
 ;;When employee arrives to house, he will stop
 ;;If that employee is of shape car, then shape will change to a person
-;;Otherwise if it is a person moves with speed of 0.2 and for car speed is 0.8
+;;Otherwise if it is a person moves with speed of 0.01 and for car speed is 0.1
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-from-workplace-to-home
@@ -162,16 +225,21 @@ to move-from-workplace-to-home
           set shape "person"
         ]
         set where-now "home"
+        set movement "idle"
         stop
       ]
       [
         (ifelse has-car = "true"
           [
             set shape "car"
-            set size 3
-            forward 0.8
+            set size 1
+            set movement "driving"
+            forward 0.1
           ]
-          [forward 0.2])
+          [
+            set movement "walking"
+            forward 0.01
+        ])
       ])
     spread-disease
   ]
@@ -183,7 +251,7 @@ end
 ;;Any employee is in the radius of another with color red and shape person
 ;;based on the 'spread-rate' the healthy employees will infected.
 to spread-disease
-  if any? employees with [color = red and shape = "person"] in-radius 0.5 [
+  if any? employees with [color = red and shape = "person"] in-radius 0.4 [
     if random 100 < spread-rate * 100 [
       set color red
     ]
@@ -193,11 +261,11 @@ end
 GRAPHICS-WINDOW
 465
 11
-1196
-743
+1205
+752
 -1
 -1
-3.0
+12.0
 1
 10
 1
@@ -207,10 +275,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--120
-120
--120
-120
+-30
+30
+-30
+30
 1
 1
 1
@@ -260,7 +328,7 @@ number-of-workplaces
 number-of-workplaces
 1
 100
-25.0
+40.0
 1
 1
 NIL
@@ -275,7 +343,7 @@ number-of-houses
 number-of-houses
 1
 500
-100.0
+50.0
 1
 1
 NIL
@@ -387,7 +455,7 @@ number-of-busses
 number-of-busses
 1
 20
-5.0
+1.0
 1
 1
 NIL
