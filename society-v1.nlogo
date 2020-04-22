@@ -8,8 +8,9 @@ breed [busses bus]
 
 houses-own[family-number]
 workplaces-own[workplace-number]
-employees-own[family-number workplace-number diagnosis where-now has-car]
+employees-own[family-number workplace-number supermarket-number diagnosis where-now has-car shopping]
 busses-own[bus-number x-cor y-cor]
+supermarkets-own[supermarket-number]
 
 to setup
   clear-all
@@ -23,8 +24,14 @@ end
 
 to go
   ifelse employee-at-home = "true"
-    [move-to-workplace]
+    [
+      move-to-workplace
+      ask employees [
+        set shopping random 100
+      ]
+    ]
     [move-from-workplace-to-home]
+  ;move-to-market
   tick
 end
 
@@ -53,6 +60,7 @@ to build-workplaces
     let y random 20 - random 20
     setxy x y
     set workplace-number counter
+    set label workplace-number
     set counter counter + 1
     set color yellow
   ]
@@ -61,11 +69,14 @@ end
 ;;Build supermarkets in random coordinates.
 to build-supermarkets
   set-default-shape supermarkets "house"
+  set counter 1
   create-supermarkets number-of-supermarkets[
     set size 1.5
     let x random 20 - random 20
     let y random 20 - random 20
     setxy x y
+    set supermarket-number counter
+    set counter counter + 1
     set color blue
   ]
 end
@@ -137,6 +148,8 @@ to assign-workplace-to-employees
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
       set where-now "home"
+      set supermarket-number random 4 + 1
+      set label workplace-number
       (ifelse random 100 < private-transport
         [set has-car "true"]
         [set has-car "false"])
@@ -155,7 +168,7 @@ end
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-to-workplace
-  move-transport-services-towards-center
+  ;move-transport-services-towards-center
   ask employees [
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
     face employee-workplace
@@ -192,33 +205,68 @@ end
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-from-workplace-to-home
-  move-transport-services-awayfrom-center
+  ;move-transport-services-awayfrom-center
   ask employees [
-    let family-place one-of houses with [family-number = [family-number] of myself]
-    face family-place
-    (ifelse
-      any? houses in-radius 1 [
-        if has-car = "true" [
-          set shape "person"
-        ]
-        set where-now "home"
-        stop
-      ]
-      [
-        (ifelse has-car = "true"
-          [
-            set shape "car"
-            set size 1
-            forward 0.1
+    if shopping < go-shopping and where-now = "workplace" [
+      move-to-market
+    ]
+    if ((shopping >= go-shopping and where-now = "workplace") or (shopping < go-shopping and where-now = "supermarket")) [
+      let family-place one-of houses with [family-number = [family-number] of myself]
+      face family-place
+      (ifelse
+        any? houses in-radius 1 [
+          if has-car = "true" [
+            set shape "person"
           ]
-          [
-            forward 0.01
+          set where-now "home"
+          stop
+        ]
+        [
+          (ifelse has-car = "true"
+            [
+              set shape "car"
+              set size 1
+              forward 0.1
+            ]
+            [
+              forward 0.01
+          ])
         ])
-      ])
-    spread-disease
+      spread-disease
+    ]
   ]
   if all? employees [where-now = "home"] [
     set employee-at-home "true"
+  ]
+end
+
+;;Move employees to workplace after working in the workplace
+to move-to-market
+  ask employees [
+    if shopping < go-shopping [
+      let market-place one-of supermarkets with [supermarket-number = [supermarket-number] of myself]
+      face market-place
+      (ifelse
+        any? supermarkets in-radius 1 [
+          if has-car = "true" [
+            set shape "person"
+          ]
+          set where-now "supermarket"
+          stop
+        ]
+        [
+          (ifelse has-car = "true"
+            [
+              set shape "car"
+              set size 1
+              forward 0.1
+            ]
+            [
+              forward 0.01
+          ])
+        ])
+      spread-disease
+    ]
   ]
 end
 
@@ -302,7 +350,7 @@ number-of-workplaces
 number-of-workplaces
 1
 100
-40.0
+10.0
 1
 1
 NIL
@@ -317,7 +365,7 @@ number-of-houses
 number-of-houses
 1
 500
-50.0
+20.0
 1
 1
 NIL
@@ -414,7 +462,7 @@ number-of-supermarkets
 number-of-supermarkets
 1
 20
-4.0
+5.0
 1
 1
 NIL
@@ -456,6 +504,21 @@ private-transport
 0
 100
 30.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+232
+20
+431
+53
+go-shopping
+go-shopping
+0
+100
+40.0
 1
 1
 %
