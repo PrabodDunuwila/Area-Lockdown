@@ -4,12 +4,10 @@ breed [employees employee]
 breed [houses house]
 breed [workplaces workplace]
 breed [supermarkets supermarket]
-breed [busses bus]
 
 houses-own[family-number]
 workplaces-own[workplace-number]
-employees-own[family-number workplace-number supermarket-number diagnosis where-now has-car shopping]
-busses-own[bus-number x-cor y-cor]
+employees-own[family-number workplace-number supermarket-number where-now has-car shopping tested? diagnosis lockdown-status]
 supermarkets-own[supermarket-number]
 
 to setup
@@ -18,7 +16,7 @@ to setup
   build-supermarkets
   build-workplaces
   assign-workplace-to-employees
-  make-transport-services
+  build-contaminated-area
   reset-ticks
 end
 
@@ -80,59 +78,6 @@ to build-supermarkets
   ]
 end
 
-;;Place busses in random coordinates.
-to make-transport-services
-  set-default-shape busses "car"
-  create-busses 1[
-    set size 2
-    setxy 25 25
-    set color green
-    set bus-number "1"
-    set x-cor 25
-    set y-cor 25
-  ]
-  create-busses 1[
-    set size 2
-    setxy 25 -25
-    set color green
-    set bus-number "2"
-    set x-cor 25
-    set y-cor -25
-  ]
-  create-busses 1[
-    set size 2
-    setxy -25 -25
-    set color green
-    set bus-number "3"
-    set x-cor -25
-    set y-cor -25
-  ]
-  create-busses 1[
-    set size 2
-    setxy -25 25
-    set color green
-    set bus-number "4"
-    set x-cor -25
-    set y-cor 25
-  ]
-end
-
-;;Move 'busses' towards center
-to move-transport-services-towards-center
-  ask busses [
-    face patch 0 0
-    forward 0.1
-  ]
-end
-
-;;Move 'busses' away from center
-to move-transport-services-awayfrom-center
-  ask busses [
-    face patch x-cor y-cor
-    forward 0.1
-  ]
-end
-
 ;;Each house hatch employees based on 'employees-per-house'
 ;;Employee 'family-number' is based on the house 'family-number' which employee is hatched
 ;;Each employee is assigned a random workplace
@@ -148,7 +93,10 @@ to assign-workplace-to-employees
       set workplace-number random number-of-workplaces + 1
       set where-now "home"
       set supermarket-number random 4 + 1
-      set label workplace-number
+      set diagnosis "tested"
+      (ifelse random 100 < testing
+        [set tested? true]
+        [set tested? false])
       (ifelse random 100 < private-transport
         [set has-car "true"]
         [set has-car "false"])
@@ -167,32 +115,54 @@ end
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-to-workplace
-  move-transport-services-towards-center
   ask employees [
-    let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
-    face employee-workplace
-    (ifelse
-      any? workplaces with [workplace-number = [workplace-number] of myself] in-radius 1 [
-        if has-car = "true" [
-          set shape "person"
-        ]
-        set where-now "workplace"
-        stop
-      ]
-      [
-        (ifelse has-car = "true"
-          [
-            set shape "car"
-            set size 1
-            forward 0.1
+    (ifelse [pcolor] of one-of patches in-radius 1 = red - 3 [
+
+      ][
+      let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
+      face employee-workplace
+      (ifelse
+        any? workplaces with [workplace-number = [workplace-number] of myself] in-radius 1 [
+          if has-car = "true" [
+            set shape "person"
           ]
-          [
-            forward 0.01
+          set where-now "workplace"
+          stop
+        ]
+        [
+          (ifelse has-car = "true"
+            [
+              ;;move away if patch ahead is red - 3
+              (ifelse [pcolor] of patch-ahead 2 = red - 3 [
+                (ifelse [pcolor] of patch-right-and-ahead 90 1 = red - 3 [
+                  left 90
+                  ][right 90])
+                  set shape "car"
+                  set size 1
+                  forward 0.2
+                ]
+              [
+                set shape "car"
+                set size 1
+                forward 0.1
+              ])
+            ]
+            [
+              ifelse [pcolor] of patch-ahead 1 = red - 3 [
+                (ifelse [pcolor] of patch-right-and-ahead 90 1 = red - 3 [
+                  left 90
+                  ][right 90])
+                forward 0.01
+              ]
+              [
+                forward 0.01
+              ]
+            ])
           ])
-        ])
-    spread-disease
+      spread-disease
+    ])
   ]
-  if all? employees [where-now = "workplace"] [
+  if all? employees [(where-now = "workplace") or (lockdown-status = "contaminated")] [
     set employee-at-home "false"
   ]
 end
@@ -204,7 +174,6 @@ end
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-from-workplace-to-home
-  move-transport-services-awayfrom-center
   ask employees [
     if shopping < go-shopping and where-now = "workplace" [
       move-to-market
@@ -241,30 +210,28 @@ end
 
 ;;Move employees to supermarket after working in the workplace
 to move-to-market
-  if shopping < go-shopping [
-    let market-place one-of supermarkets with [supermarket-number = [supermarket-number] of myself]
-    face market-place
-    (ifelse
-       any? supermarkets with [supermarket-number = [supermarket-number] of myself] in-radius 1 [
-        if has-car = "true" [
-          set shape "person"
-        ]
-        set where-now "supermarket"
-        stop
+  let market-place one-of supermarkets with [supermarket-number = [supermarket-number] of myself]
+  face market-place
+  (ifelse
+     any? supermarkets with [supermarket-number = [supermarket-number] of myself] in-radius 1 [
+      if has-car = "true" [
+        set shape "person"
       ]
-      [
-        (ifelse has-car = "true"
-          [
-            set shape "car"
-            set size 1
-            forward 0.1
-          ]
-          [
-            forward 0.01
-        ])
+      set where-now "supermarket"
+      stop
+    ]
+    [
+      (ifelse has-car = "true"
+        [
+          set shape "car"
+          set size 1
+          forward 0.1
+        ]
+        [
+          forward 0.01
       ])
-    spread-disease
-  ]
+    ])
+  spread-disease
 end
 
 ;;Any employee is in the radius of another with color red and shape person
@@ -273,6 +240,29 @@ to spread-disease
   if any? employees with [color = red and shape = "person"] in-radius 0.4 [
     if random 100 < spread-rate * 100 [
       set color red
+    ]
+  ]
+end
+
+to build-contaminated-area
+  ask employees [
+    (ifelse (color = red and tested? = true and where-now = "home") [
+      set diagnosis "tested-positive"
+      ask patches in-radius 12 [
+        set pcolor green - 3
+      ]
+      ask patches in-radius 8 [
+        set pcolor yellow - 3
+      ]
+      ask patches in-radius 4 [
+        set pcolor red - 3
+      ]
+    ]
+    [
+      set diagnosis "tested-negative"
+    ])
+    if [pcolor] of one-of patches in-radius 1 = red - 3 [
+      set lockdown-status "contaminated"
     ]
   ]
 end
@@ -362,7 +352,7 @@ number-of-houses
 number-of-houses
 1
 500
-50.0
+20.0
 1
 1
 NIL
@@ -384,10 +374,10 @@ NIL
 HORIZONTAL
 
 PLOT
-14
-265
-435
-449
+13
+358
+434
+542
 Diagnosis 
 time
 count
@@ -403,10 +393,10 @@ PENS
 "not-infected" 1.0 0 -10899396 true "" "plot count employees with [color = white]"
 
 MONITOR
-12
-475
-108
-520
+11
+568
+107
+613
 infected count
 count employees with [color = red]
 0
@@ -414,10 +404,10 @@ count employees with [color = red]
 11
 
 MONITOR
-121
-475
-253
-520
+120
+568
+252
+613
 not-infected count
 count employees with [color = white]
 0
@@ -430,7 +420,7 @@ INPUTBOX
 212
 106
 initial-infected
-10.0
+5.0
 1
 0
 Number
@@ -481,10 +471,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-267
-475
-436
-520
+266
+568
+435
+613
 infected percentage (%)
 count employees with [color = red] / ( number-of-houses * employees-per-house ) * 100
 2
@@ -516,6 +506,21 @@ go-shopping
 0
 100
 80.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+235
+259
+434
+292
+testing
+testing
+0
+100
+40.0
 1
 1
 %
