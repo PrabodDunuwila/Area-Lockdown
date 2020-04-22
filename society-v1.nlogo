@@ -1,4 +1,4 @@
-globals[counter employee-at-home where-busses]
+globals[counter employee-at-home]
 
 breed [employees employee]
 breed [houses house]
@@ -8,7 +8,7 @@ breed [busses bus]
 
 houses-own[family-number]
 workplaces-own[workplace-number]
-employees-own[family-number workplace-number diagnosis where-now has-car movement]
+employees-own[family-number workplace-number diagnosis where-now has-car]
 busses-own[bus-number x-cor y-cor]
 
 to setup
@@ -22,8 +22,6 @@ to setup
 end
 
 to go
-  if ticks < 8000 [move-transport-services-towards-center]
-  if ticks >= 8000 [move-transport-services-awayfrom-center]
   ifelse employee-at-home = "true"
     [move-to-workplace]
     [move-from-workplace-to-home]
@@ -111,15 +109,9 @@ end
 
 ;;Move 'busses' towards center
 to move-transport-services-towards-center
-  let count-emp [ count employees with [has-car = "false" and movement = "walking"] in-radius 8 ] of busses
   ask busses [
-    let count-emp-bus [ count employees with [has-car = "false" and movement = "walking"] in-radius 1.5 ] of busses
-    (ifelse count-emp-bus = count-emp
-      [
-        face patch 0 0
-        forward 1
-      ]
-      [stop])
+    face patch 0 0
+    forward 0.1
   ]
 end
 
@@ -163,6 +155,7 @@ end
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-to-workplace
+  move-transport-services-towards-center
   ask employees [
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
     face employee-workplace
@@ -172,7 +165,6 @@ to move-to-workplace
           set shape "person"
         ]
         set where-now "workplace"
-        set movement "idle"
         stop
       ]
       [
@@ -180,28 +172,12 @@ to move-to-workplace
           [
             set shape "car"
             set size 1
-            set movement "driving"
             forward 0.1
           ]
           [
-            (ifelse
-              any? busses in-radius 0.5
-              [
-                stop
-              ]
-              any? busses in-radius 8
-              [
-                set color yellow
-                set heading towards one-of busses in-radius 8
-                set movement "walking"
-                forward 1
-              ]
-              [
-                set movement "walking"
-                forward 0.01
-              ])
+            forward 0.01
+          ])
         ])
-      ])
     spread-disease
   ]
   if all? employees [where-now = "workplace"] [
@@ -216,6 +192,7 @@ end
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-from-workplace-to-home
+  move-transport-services-awayfrom-center
   ask employees [
     let family-place one-of houses with [family-number = [family-number] of myself]
     face family-place
@@ -225,7 +202,6 @@ to move-from-workplace-to-home
           set shape "person"
         ]
         set where-now "home"
-        set movement "idle"
         stop
       ]
       [
@@ -233,11 +209,9 @@ to move-from-workplace-to-home
           [
             set shape "car"
             set size 1
-            set movement "driving"
             forward 0.1
           ]
           [
-            set movement "walking"
             forward 0.01
         ])
       ])
