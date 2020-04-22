@@ -31,7 +31,6 @@ to go
       ]
     ]
     [move-from-workplace-to-home]
-  ;move-to-market
   tick
 end
 
@@ -168,12 +167,12 @@ end
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-to-workplace
-  ;move-transport-services-towards-center
+  move-transport-services-towards-center
   ask employees [
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
     face employee-workplace
     (ifelse
-      any? workplaces in-radius 1 [
+      any? workplaces with [workplace-number = [workplace-number] of myself] in-radius 1 [
         if has-car = "true" [
           set shape "person"
         ]
@@ -205,7 +204,7 @@ end
 ;;At each tick 'spread-disease' is called
 ;;Global variable is changed based on all employee location
 to move-from-workplace-to-home
-  ;move-transport-services-awayfrom-center
+  move-transport-services-awayfrom-center
   ask employees [
     if shopping < go-shopping and where-now = "workplace" [
       move-to-market
@@ -214,7 +213,7 @@ to move-from-workplace-to-home
       let family-place one-of houses with [family-number = [family-number] of myself]
       face family-place
       (ifelse
-        any? houses in-radius 1 [
+        any? houses with [family-number = [family-number] of myself] in-radius 1 [
           if has-car = "true" [
             set shape "person"
           ]
@@ -226,7 +225,7 @@ to move-from-workplace-to-home
             [
               set shape "car"
               set size 1
-              forward 0.1
+              forward 0.06
             ]
             [
               forward 0.01
@@ -240,33 +239,31 @@ to move-from-workplace-to-home
   ]
 end
 
-;;Move employees to workplace after working in the workplace
+;;Move employees to supermarket after working in the workplace
 to move-to-market
-  ask employees [
-    if shopping < go-shopping [
-      let market-place one-of supermarkets with [supermarket-number = [supermarket-number] of myself]
-      face market-place
-      (ifelse
-        any? supermarkets in-radius 1 [
-          if has-car = "true" [
-            set shape "person"
-          ]
-          set where-now "supermarket"
-          stop
+  if shopping < go-shopping [
+    let market-place one-of supermarkets with [supermarket-number = [supermarket-number] of myself]
+    face market-place
+    (ifelse
+       any? supermarkets with [supermarket-number = [supermarket-number] of myself] in-radius 1 [
+        if has-car = "true" [
+          set shape "person"
         ]
-        [
-          (ifelse has-car = "true"
-            [
-              set shape "car"
-              set size 1
-              forward 0.1
-            ]
-            [
-              forward 0.01
-          ])
+        set where-now "supermarket"
+        stop
+      ]
+      [
+        (ifelse has-car = "true"
+          [
+            set shape "car"
+            set size 1
+            forward 0.1
+          ]
+          [
+            forward 0.01
         ])
-      spread-disease
-    ]
+      ])
+    spread-disease
   ]
 end
 
@@ -350,7 +347,7 @@ number-of-workplaces
 number-of-workplaces
 1
 100
-10.0
+5.0
 1
 1
 NIL
@@ -365,7 +362,7 @@ number-of-houses
 number-of-houses
 1
 500
-20.0
+50.0
 1
 1
 NIL
@@ -518,7 +515,7 @@ go-shopping
 go-shopping
 0
 100
-40.0
+80.0
 1
 1
 %
