@@ -8,7 +8,7 @@ breed [supermarkets supermarket]
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
 employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? diagnosis can-work? idle?]
-supermarkets-own[supermarket-number]
+supermarkets-own[supermarket-number supermarket-status]
 patches-own[status]
 
 to setup
@@ -28,9 +28,8 @@ to go
   ifelse (all-employees-home? = true)
     [
       move-to-workplace
-      ask employees [
-        set shopping random 100
-      ]
+      ask employees
+        [set shopping random 100]
     ]
     [move-from-workplace-to-home]
   if (all-idle? = true and all-employees-home? = true)
@@ -150,9 +149,8 @@ end
 
 to move-from-workplace-to-home
   ask employees [
-    if (shopping < go-shopping and where-now? = "workplace") [
-      move-to-market
-    ]
+    if (shopping < go-shopping and where-now? = "workplace")
+      [move-to-market]
     if ((shopping >= go-shopping and where-now? = "workplace") or (shopping < go-shopping and where-now? = "supermarket")) [
       let family-place one-of houses with [family-number = [family-number] of myself]
       face family-place
@@ -183,21 +181,24 @@ end
 
 to move-to-market
   let market-place one-of supermarkets with [supermarket-number = [supermarket-number] of myself]
-  face market-place
-  (ifelse any? supermarkets with [supermarket-number = [supermarket-number] of myself] in-radius 1 [
-    if has-car? = true
-      [set shape "person"]
-    set where-now? "supermarket"
-    stop
-  ]
-  [
-    (ifelse has-car? = true
-      [set shape "car"
-       set size 1
-       forward 0.1]
-      [forward 0.01])
-    ])
-  spread-disease
+  (ifelse [supermarket-status] of market-place != "contaminated" [
+    face market-place
+    (ifelse any? supermarkets with [supermarket-number = [supermarket-number] of myself] in-radius 1 [
+      if has-car? = true
+        [set shape "person"]
+      set where-now? "supermarket"
+      stop
+    ]
+    [
+      (ifelse has-car? = true
+        [set shape "car"
+         set size 1
+         forward 0.1]
+        [forward 0.01])
+      ])
+    spread-disease
+    ]
+    [set where-now? "supermarket"])
 end
 
 ;;bug: infected walking people will spread disease to non-infected car
@@ -252,6 +253,11 @@ to check-area-status
     ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set workplace-status "contaminated"]
       [set workplace-status "not-contaminated"]
+  ]
+  ask supermarkets [
+    ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
+      [set supermarket-status "contaminated"]
+      [set supermarket-status "not-contaminated"]
   ]
 end
 @#$#@#$#@
@@ -325,7 +331,7 @@ number-of-workplaces
 number-of-workplaces
 1
 100
-23.0
+10.0
 1
 1
 NIL
@@ -340,7 +346,7 @@ number-of-houses
 number-of-houses
 1
 500
-200.0
+30.0
 1
 1
 NIL
@@ -437,7 +443,7 @@ number-of-supermarkets
 number-of-supermarkets
 1
 20
-5.0
+2.0
 1
 1
 NIL
@@ -478,7 +484,7 @@ go-shopping
 go-shopping
 0
 100
-50.0
+100.0
 1
 1
 %
