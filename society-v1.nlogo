@@ -6,8 +6,8 @@ breed [workplaces workplace]
 breed [supermarkets supermarket]
 
 houses-own[family-number]
-workplaces-own[workplace-number]
-employees-own[family-number workplace-number supermarket-number where-now has-car shopping tested? diagnosis lockdown-status]
+workplaces-own[workplace-number area-status]
+employees-own[family-number workplace-number supermarket-number where-now has-car shopping tested? lockdown-status area-status]
 supermarkets-own[supermarket-number]
 
 to setup
@@ -16,12 +16,15 @@ to setup
   build-supermarkets
   build-workplaces
   assign-workplace-to-employees
-  build-contaminated-area
+  build-sterile-zone
+  build-buffer-zone
+  build-contaminated-zone
+  check-area-status
   reset-ticks
 end
 
 to go
-  ifelse employee-at-home = "true"
+  ifelse(employee-at-home = "true")
     [
       move-to-workplace
       ask employees [
@@ -92,8 +95,8 @@ to assign-workplace-to-employees
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
       set where-now "home"
-      set supermarket-number random 4 + 1
-      set diagnosis "tested"
+      set label workplace-number
+      set supermarket-number number-of-supermarkets + 1
       (ifelse random 100 < testing
         [set tested? true]
         [set tested? false])
@@ -108,6 +111,22 @@ to assign-workplace-to-employees
   ]
 end
 
+to check-area-status
+  ask employees[
+    if (([pcolor] of one-of patches in-radius 1 = red - 3) and where-now = "home") [
+      set area-status "contaminated"
+    ]
+  ]
+  ask workplaces[
+    ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 or [pcolor] of one-of patches in-radius 1 = yellow - 3) [
+      set area-status "contaminated"
+    ]
+    [
+      set area-status "not-contaminated"
+    ]
+  ]
+end
+
 ;;Get each employee 'workplace-number' and employee will face the the direction of workplace
 ;;When employee arrives to workplace, he will stop
 ;;If that employee is of shape car, then shape will change to a person
@@ -116,10 +135,12 @@ end
 ;;Global variable is changed based on all employee location
 to move-to-workplace
   ask employees [
-    (ifelse [pcolor] of one-of patches in-radius 1 = red - 3 [
+    let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
 
-      ][
-      let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
+    (ifelse ( area-status = "contaminated" or [area-status] of employee-workplace = "contaminated" ) [
+       ;;do nothing - employee in contaminated area
+    ]
+    [
       face employee-workplace
       (ifelse
         any? workplaces with [workplace-number = [workplace-number] of myself] in-radius 1 [
@@ -133,30 +154,27 @@ to move-to-workplace
           (ifelse has-car = "true"
             [
               ;;move away if patch ahead is red - 3
-              (ifelse [pcolor] of patch-ahead 2 = red - 3 [
-                (ifelse [pcolor] of patch-right-and-ahead 90 1 = red - 3 [
-                  left 90
-                  ][right 90])
+              (ifelse ([pcolor] of patch-ahead 1 = red - 3)[
+                  set heading 120
                   set shape "car"
                   set size 1
-                  forward 0.2
-                ]
+                  forward 0.3
+              ]
               [
-                set shape "car"
-                set size 1
-                forward 0.1
+                  set shape "car"
+                  set size 1
+                  forward 0.1
               ])
-            ]
+             ]
+
             [
-              ifelse [pcolor] of patch-ahead 1 = red - 3 [
-                (ifelse [pcolor] of patch-right-and-ahead 90 1 = red - 3 [
-                  left 90
-                  ][right 90])
-                forward 0.01
+              (ifelse [pcolor] of patch-ahead 1 = red - 3 [
+                 set heading 120
+                 forward 0.03
               ]
               [
                 forward 0.01
-              ]
+              ])
             ])
           ])
       spread-disease
@@ -244,26 +262,34 @@ to spread-disease
   ]
 end
 
-to build-contaminated-area
+to build-contaminated-zone
   ask employees [
     (ifelse (color = red and tested? = true and where-now = "home") [
-      set diagnosis "tested-positive"
-      ask patches in-radius 12 [
-        set pcolor green - 3
-      ]
-      ask patches in-radius 8 [
-        set pcolor yellow - 3
-      ]
       ask patches in-radius 4 [
         set pcolor red - 3
       ]
     ]
     [
-      set diagnosis "tested-negative"
     ])
     if [pcolor] of one-of patches in-radius 1 = red - 3 [
       set lockdown-status "contaminated"
     ]
+  ]
+end
+
+to build-buffer-zone
+  ask employees [
+    if (color = red and tested? = true and where-now = "home") [
+      ask patches in-radius 8 [
+        set pcolor yellow - 3
+      ]
+    ]
+  ]
+end
+
+to build-sterile-zone
+  ask patches [
+    set pcolor green - 3
   ]
 end
 @#$#@#$#@
@@ -420,7 +446,7 @@ INPUTBOX
 212
 106
 initial-infected
-5.0
+10.0
 1
 0
 Number
@@ -449,7 +475,7 @@ number-of-supermarkets
 number-of-supermarkets
 1
 20
-5.0
+4.0
 1
 1
 NIL
@@ -520,7 +546,7 @@ testing
 testing
 0
 100
-40.0
+30.0
 1
 1
 %
