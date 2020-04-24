@@ -222,10 +222,9 @@ to move-to-market
     [set where-now? "supermarket"])
 end
 
-;;bug: infected walking people will spread disease to non-infected car
 to spread-disease
   if any? employees with [color = red and shape = "person"] in-radius 0.1 [
-    if random 100 < spread-rate * 100 [
+    if random 100 < spread-rate * 100 and shape = "person" [
       set color red
       set diagnosis "infected"
     ]
@@ -369,7 +368,7 @@ number-of-houses
 number-of-houses
 1
 500
-40.0
+50.0
 1
 1
 NIL
@@ -466,7 +465,7 @@ number-of-supermarkets
 number-of-supermarkets
 1
 20
-5.0
+10.0
 1
 1
 NIL
@@ -507,7 +506,7 @@ go-shopping
 go-shopping
 0
 100
-100.0
+60.0
 1
 1
 %
@@ -525,7 +524,7 @@ test-rate
 30.0
 1
 1
-NIL
+%
 HORIZONTAL
 
 @#$#@#$#@
