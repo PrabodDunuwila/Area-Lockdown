@@ -7,7 +7,7 @@ breed [supermarkets supermarket]
 
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
-employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? diagnosis can-work? idle?]
+employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time]
 supermarkets-own[supermarket-number supermarket-status]
 patches-own[status]
 
@@ -25,6 +25,10 @@ to setup
 end
 
 to go
+  ask employees [
+    if (diagnosis = "infected" and tested? = true)
+      [set infected-time infected-time + 1]
+  ]
   ifelse (all-employees-home? = true)
     [
       move-to-workplace
@@ -33,9 +37,25 @@ to go
     ]
     [move-from-workplace-to-home]
   if (all-idle? = true and all-employees-home? = true)
-    [test-employees
+    [
+      ask employees [
+      if (infected-time > 8000) [
+        set color white
+        set diagnosis "not-infected"
+        set can-work? true
+        set tested? false
+        set infected-time 1
+        ask patches in-radius 8 [
+          if status != "not-contaminated"
+            [set pcolor green - 3
+             set status "not-contaminated"]
+        ]
+      ]
+    ]
+     test-employees
      identify-zones
-     check-area-status]
+     check-area-status
+  ]
   tick
 end
 
@@ -110,7 +130,8 @@ to test-employees
       [set tested? true]
       [set tested? false])
     (ifelse (tested? = true and diagnosis = "infected")
-      [set can-work? false]
+      [set can-work? false
+       set infected-time 1]
       [set can-work? true])
   ]
 end
@@ -203,7 +224,7 @@ end
 
 ;;bug: infected walking people will spread disease to non-infected car
 to spread-disease
-  if any? employees with [color = red and shape = "person"] in-radius 0.05 [
+  if any? employees with [color = red and shape = "person"] in-radius 0.1 [
     if random 100 < spread-rate * 100 [
       set color red
       set diagnosis "infected"
@@ -214,6 +235,7 @@ end
 to mark-sterile-zone
   ask patches [
     set pcolor green - 3
+    set status "not-contaminated"
   ]
 end
 
@@ -222,7 +244,8 @@ to mark-buffer-zone
     if (tested? = true and diagnosis = "infected" and where-now? = "home") [
       ask patches in-radius 8 [
         if status != "contaminated"
-          [set pcolor yellow - 3]
+          [set pcolor yellow - 3
+           set status "buffer"]
       ]
     ]
   ]
@@ -346,7 +369,7 @@ number-of-houses
 number-of-houses
 1
 500
-30.0
+40.0
 1
 1
 NIL
@@ -414,7 +437,7 @@ INPUTBOX
 212
 106
 initial-infected
-20.0
+10.0
 1
 0
 Number
@@ -428,7 +451,7 @@ spread-rate
 spread-rate
 0
 1
-0.4
+0.5
 0.1
 1
 NIL
@@ -443,7 +466,7 @@ number-of-supermarkets
 number-of-supermarkets
 1
 20
-2.0
+5.0
 1
 1
 NIL
@@ -499,7 +522,7 @@ test-rate
 test-rate
 0
 100
-40.0
+30.0
 1
 1
 NIL
