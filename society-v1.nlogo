@@ -7,7 +7,7 @@ breed [supermarkets supermarket]
 
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
-employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time]
+employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time infected-days]
 supermarkets-own[supermarket-number supermarket-status]
 patches-own[status]
 
@@ -40,16 +40,22 @@ to go
     [
       ask employees [
       if (infected-time > 8000) [
+        set infected-days infected-days + 1
+      ]
+      if (infected-days >= 2) [
+        set infected-days infected-days + 1
         set color white
         set diagnosis "not-infected"
         set can-work? true
         set tested? false
         set infected-time 1
+        set infected-days 0
         ask patches in-radius 8 [
           if status != "not-contaminated"
             [set pcolor green - 3
              set status "not-contaminated"]
         ]
+        identify-zones     ;;check this condition
       ]
     ]
      test-employees
@@ -108,6 +114,7 @@ to initialize-employees
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
       set where-now? "home"
+      set infected-days 0
       set supermarket-number random number-of-supermarkets + 1
       set idle? true
       (ifelse (random 100 < private-transport)
@@ -223,7 +230,7 @@ to move-to-market
 end
 
 to spread-disease
-  if any? employees with [color = red and shape = "person"] in-radius 0.1 [
+  if any? employees with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.1 [
     if random 100 < spread-rate * 100 and shape = "person" [
       set color red
       set diagnosis "infected"
@@ -450,7 +457,7 @@ spread-rate
 spread-rate
 0
 1
-0.5
+0.6
 0.1
 1
 NIL
