@@ -1,14 +1,18 @@
-globals[counter all-employees-home? all-idle?]
+globals[counter all-employees-home? all-children-home? all-employees-idle? all-children-idle?]
 
 breed [employees employee]
+breed [children child]
 breed [houses house]
 breed [workplaces workplace]
 breed [supermarkets supermarket]
+breed [schools school]
 
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
 employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time infected-days]
+children-own[family-number school-number diagnosis where-now? idle? tested? infected-time infected-days schooling?]
 supermarkets-own[supermarket-number supermarket-status]
+schools-own[school-number school-status]
 patches-own[status]
 
 to setup
@@ -16,8 +20,11 @@ to setup
   build-houses
   build-supermarkets
   build-workplaces
+  build-schools
   initialize-employees
+  initialize-children
   test-employees
+  test-children
   mark-sterile-zone
   identify-zones
   check-area-status
@@ -29,20 +36,28 @@ to go
     if (diagnosis = "infected" and tested? = true)
       [set infected-time infected-time + 1]
   ]
-  ifelse (all-employees-home? = true)
-    [
+  (ifelse
+    (all-employees-home? = true and all-children-home? = true)[
+      if(open-schools = true)[
+        move-to-school
+      ]
       move-to-workplace
       ask employees
         [set shopping random 100]
     ]
-    [move-from-workplace-to-home]
-  if (all-idle? = true and all-employees-home? = true)
+    (all-employees-home? = false and all-children-home? = false)[
+      move-from-school-to-home
+    ]
+    (all-employees-home? = false and all-children-home? = true)[
+      move-from-workplace-to-home
+    ])
+  if (all-employees-idle? = true and all-employees-home? = true)
     [
       ask employees [
       if (infected-time > 8000) [
         set infected-days infected-days + 1
       ]
-      if (infected-days >= 2) [
+      if (infected-days >= 1) [
         set infected-days infected-days + 1
         set color white
         set diagnosis "not-infected"
@@ -105,6 +120,20 @@ to build-supermarkets
   ]
 end
 
+to build-schools
+  set-default-shape schools "house"
+  set counter 1
+  create-schools number-of-schools[
+    set size 1.5
+    let x random 25 - random 25
+    let y random 25 - random 25
+    setxy x y
+    set school-number counter
+    set counter counter + 1
+    set color orange
+  ]
+end
+
 to initialize-employees
   set counter initial-infected
   set all-employees-home? true
@@ -128,6 +157,21 @@ to initialize-employees
   ]
 end
 
+to initialize-children
+  set all-children-home? true
+  ask houses [
+    hatch-children children-per-house [
+      set shape "person"
+      set family-number [family-number] of myself
+      set school-number random number-of-schools + 1
+      set where-now? "home"
+      set infected-days 0
+      set idle? true
+      set color white
+    ]
+  ]
+end
+
 to test-employees
   ask employees [
     (ifelse (color = red)
@@ -143,9 +187,24 @@ to test-employees
   ]
 end
 
+to test-children
+  ask children [
+    (ifelse (color = red)
+      [set diagnosis "infected"]
+      [set diagnosis "not-infected"])
+    (ifelse (random 100 < test-rate)
+      [set tested? true]
+      [set tested? false])
+    (ifelse (tested? = true and diagnosis = "infected")
+      [set schooling? false
+       set infected-time 1]
+      [set schooling? true])
+  ]
+end
+
 to move-to-workplace
   ask employees [
-    set all-idle? false
+    set all-employees-idle? false
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
     if ( [workplace-status] of employee-workplace = "contaminated" ) [
       set can-work? false
@@ -172,6 +231,32 @@ to move-to-workplace
   ]
   if all? employees [where-now? = "workplace" or can-work? = false] [
     set all-employees-home? false
+  ]
+end
+
+to move-to-school
+  ask children [
+    set all-children-idle? false
+    let child-school one-of schools with [school-number = [school-number] of myself]
+    if ( [school-status] of child-school = "contaminated" ) [
+      set schooling? false
+    ]
+    if (schooling? = true) [
+      face child-school
+      (ifelse
+        any? schools with [school-number = [school-number] of myself] in-radius 1 [
+          set where-now? "school"
+          stop
+        ]
+        [
+          set idle? false
+          forward 0.01
+       ])
+      spread-disease
+    ]
+  ]
+  if all? children [where-now? = "school" or schooling? = false] [
+    set all-children-home? false
   ]
 end
 
@@ -203,7 +288,29 @@ to move-from-workplace-to-home
     set all-employees-home? true
   ]
   if all? employees [idle? = true] [
-    set all-idle? true
+    set all-employees-idle? true
+  ]
+end
+
+to move-from-school-to-home
+  ask children [
+    if (where-now? = "school") [
+      let family-place one-of houses with [family-number = [family-number] of myself]
+      face family-place
+      (ifelse any? houses with [family-number = [family-number] of myself] in-radius 1 [
+        set where-now? "home"
+        set idle? true
+        stop
+      ]
+      [forward 0.01])
+      spread-disease
+    ]
+  ]
+  if all? children [where-now? = "home"] [
+    set all-children-home? true
+  ]
+  if all? children [idle? = true] [
+    set all-children-idle? true
   ]
 end
 
@@ -278,6 +385,10 @@ to check-area-status
     if ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set can-work? false]
   ]
+  ask children [
+    if ([pcolor] of one-of patches in-radius 1 = red - 3 )
+      [set schooling? false]
+  ]
   ask workplaces [
     ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set workplace-status "contaminated"]
@@ -287,6 +398,11 @@ to check-area-status
     ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set supermarket-status "contaminated"]
       [set supermarket-status "not-contaminated"]
+  ]
+  ask schools [
+    ifelse ([pcolor] of one-of patches in-radius 3 = red - 3 )
+      [set school-status "contaminated"]
+      [set school-status "not-contaminated"]
   ]
 end
 @#$#@#$#@
@@ -375,7 +491,7 @@ number-of-houses
 number-of-houses
 1
 500
-50.0
+20.0
 1
 1
 NIL
@@ -397,10 +513,10 @@ NIL
 HORIZONTAL
 
 PLOT
-17
-263
-438
+20
+512
 447
+696
 Diagnosis 
 time
 count
@@ -416,23 +532,23 @@ PENS
 "not-infected" 1.0 0 -10899396 true "" "plot count employees with [color = white]"
 
 MONITOR
-16
-473
-112
-518
+78
+707
+170
+752
 infected count
-count employees with [color = red]
+count turtles with [color = red]
 0
 1
 11
 
 MONITOR
-124
-473
-256
-518
+173
+707
+292
+752
 not-infected count
-count employees with [color = white]
+count turtles with [color = white]
 0
 1
 11
@@ -443,16 +559,16 @@ INPUTBOX
 212
 106
 initial-infected
-10.0
+5.0
 1
 0
 Number
 
 SLIDER
 233
-116
+162
 432
-149
+195
 spread-rate
 spread-rate
 0
@@ -464,10 +580,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-233
-162
-433
-195
+232
+67
+432
+100
 number-of-supermarkets
 number-of-supermarkets
 1
@@ -479,10 +595,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-270
-473
-439
-518
+297
+707
+446
+752
 infected percentage (%)
 count employees with [color = red] / ( number-of-houses * employees-per-house ) * 100
 2
@@ -491,9 +607,9 @@ count employees with [color = red] / ( number-of-houses * employees-per-house ) 
 
 SLIDER
 233
-67
+116
 431
-100
+149
 private-transport
 private-transport
 0
@@ -533,6 +649,73 @@ test-rate
 1
 %
 HORIZONTAL
+
+SLIDER
+12
+305
+213
+338
+number-of-schools
+number-of-schools
+1
+5
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+13
+258
+213
+291
+children-per-house
+children-per-house
+0
+5
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+234
+258
+435
+291
+grandparents-per-house
+grandparents-per-house
+0
+2
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+17
+707
+74
+752
+total
+count turtles with [shape = \"person\"]
+17
+1
+11
+
+SWITCH
+234
+305
+434
+338
+open-schools
+open-schools
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
