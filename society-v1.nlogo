@@ -10,7 +10,7 @@ breed [schools school]
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
 employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time infected-days]
-children-own[family-number school-number diagnosis where-now? idle? tested? infected-time infected-days schooling?]
+children-own [family-number school-number diagnosis where-now? idle? tested? infected-time infected-days schooling?]
 supermarkets-own[supermarket-number supermarket-status]
 schools-own[school-number school-status]
 patches-own[status]
@@ -36,29 +36,30 @@ to go
     if (diagnosis = "infected" and tested? = true)
       [set infected-time infected-time + 1]
   ]
+  ask children [
+    if (diagnosis = "infected" and tested? = true)
+      [set infected-time infected-time + 1]
+  ]
   (ifelse
-    (all-employees-home? = true and all-children-home? = true)[
+    (all-employees-home? = true)[
+      move-to-workplace
       if(open-schools = true)[
         move-to-school
       ]
-      move-to-workplace
       ask employees
         [set shopping random 100]
     ]
-    (all-employees-home? = false and all-children-home? = false)[
+    [
       move-from-school-to-home
-    ]
-    (all-employees-home? = false and all-children-home? = true)[
       move-from-workplace-to-home
     ])
   if (all-employees-idle? = true and all-employees-home? = true)
-    [
+  [
       ask employees [
       if (infected-time > 8000) [
         set infected-days infected-days + 1
       ]
       if (infected-days >= 1) [
-        set infected-days infected-days + 1
         set color white
         set diagnosis "not-infected"
         set can-work? true
@@ -70,10 +71,35 @@ to go
             [set pcolor green - 3
              set status "not-contaminated"]
         ]
-        identify-zones     ;;check this condition
+        ;identify-zones     ;;check this condition
       ]
     ]
      test-employees
+     ;identify-zones
+     ;check-area-status
+  ]
+  if (open-schools = true and all-children-idle? = true and all-children-home? = true)
+  [
+      ask children [
+      if (infected-time > 8000) [
+        set infected-days infected-days + 1
+      ]
+      if (infected-days >= 1) [
+        set color white
+        set diagnosis "not-infected"
+        set schooling? true
+        set tested? false
+        set infected-time 1
+        set infected-days 0
+        ask patches in-radius 8 [
+          if status != "not-contaminated"
+            [set pcolor green - 3
+             set status "not-contaminated"]
+        ]
+        ;identify-zones     ;;check this condition
+      ]
+    ]
+     test-children
      identify-zones
      check-area-status
   ]
@@ -343,6 +369,12 @@ to spread-disease
       set diagnosis "infected"
     ]
   ]
+  if any? children with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.1 [
+    if random 100 < spread-rate * 100 and shape = "person" [
+      set color red
+      set diagnosis "infected"
+    ]
+  ]
 end
 
 to mark-sterile-zone
@@ -362,10 +394,27 @@ to mark-buffer-zone
       ]
     ]
   ]
+  ask children [
+    if (tested? = true and diagnosis = "infected" and where-now? = "home") [
+      ask patches in-radius 8 [
+        if status != "contaminated"
+          [set pcolor yellow - 3
+           set status "buffer"]
+      ]
+    ]
+  ]
 end
 
 to mark-contaminated-zone
   ask employees [
+    if (tested? = true and diagnosis = "infected" and where-now? = "home") [
+      ask patches in-radius 4 [
+        set pcolor red - 3
+        set status "contaminated"
+      ]
+    ]
+  ]
+  ask children [
     if (tested? = true and diagnosis = "infected" and where-now? = "home") [
       ask patches in-radius 4 [
         set pcolor red - 3
@@ -491,7 +540,7 @@ number-of-houses
 number-of-houses
 1
 500
-20.0
+10.0
 1
 1
 NIL
