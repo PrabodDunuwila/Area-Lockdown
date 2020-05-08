@@ -55,14 +55,8 @@ to go
       ]
     ]
     ask employees with [infected-days != 0 and infected-days < 2] [
-      ask patches with [status != "contaminated"] in-radius 8 [
-        set pcolor yellow - 3
-        set status "buffer"
-      ]
-      ask patches in-radius 4 [
-        set pcolor red - 3
-        set status "contaminated"
-      ]
+      draw-buffer-circle
+      draw-contaminated-circle
     ]
     test-employees
     identify-zones
@@ -251,21 +245,29 @@ to mark-sterile-zone
   ]
 end
 
+to draw-buffer-circle
+  ask patches with [status != "contaminated"] in-radius 8 [
+    set pcolor yellow - 3
+    set status "buffer"
+  ]
+end
+
 to mark-buffer-zone
   ask employees with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    ask patches with [status != "contaminated"] in-radius 8 [
-      set pcolor yellow - 3
-      set status "buffer"
-    ]
+    draw-buffer-circle
+  ]
+end
+
+to draw-contaminated-circle
+  ask patches in-radius 4 [
+    set pcolor red - 3
+    set status "contaminated"
   ]
 end
 
 to mark-contaminated-zone
   ask employees with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    ask patches in-radius 4 [
-      set pcolor red - 3
-      set status "contaminated"
-    ]
+    draw-contaminated-circle
   ]
 end
 
@@ -376,7 +378,7 @@ number-of-houses
 number-of-houses
 1
 500
-100.0
+36.0
 1
 1
 NIL
@@ -398,10 +400,10 @@ NIL
 HORIZONTAL
 
 PLOT
-17
-263
-438
+26
+493
 447
+677
 Diagnosis 
 time
 count
@@ -417,23 +419,23 @@ PENS
 "not-infected" 1.0 0 -10899396 true "" "plot count employees with [color = white]"
 
 MONITOR
-16
-473
-112
-518
+117
+703
+213
+748
 infected count
-count employees with [color = red]
+count turtles with [shape = \"person\" and color = red]
 0
 1
 11
 
 MONITOR
-124
-473
-256
-518
+229
+704
+347
+749
 not-infected count
-count employees with [color = white]
+count turtles with [shape = \"person\" and color = white]
 0
 1
 11
@@ -480,12 +482,12 @@ NIL
 HORIZONTAL
 
 MONITOR
-270
-473
-439
-518
-infected percentage (%)
-count employees with [color = red] / ( number-of-houses * employees-per-house ) * 100
+363
+705
+447
+750
+infected %
+count turtles with [shape = \"person\" and color = red] / (count turtles with [shape = \"person\"]) * 100
 2
 1
 11
@@ -534,6 +536,17 @@ test-rate
 1
 %
 HORIZONTAL
+
+MONITOR
+26
+702
+100
+747
+total
+count turtles with [shape = \"person\"]
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
