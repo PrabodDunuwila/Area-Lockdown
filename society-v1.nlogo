@@ -4,11 +4,13 @@ breed [employees employee]
 breed [houses house]
 breed [workplaces workplace]
 breed [supermarkets supermarket]
+breed [schools school]
 
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
 employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time infected-days]
 supermarkets-own[supermarket-number supermarket-status]
+schools-own[school-number school-status]
 patches-own[status]
 
 to setup
@@ -18,6 +20,7 @@ to setup
   build-workplaces
   initialize-employees
   test-employees
+  build-schools
   mark-sterile-zone
   identify-zones
   check-area-status
@@ -102,6 +105,20 @@ to build-supermarkets
     set supermarket-number counter
     set counter counter + 1
     set color blue
+  ]
+end
+
+to build-schools
+  set-default-shape schools "house"
+  set counter 1
+  create-schools number-of-schools[
+    set size 1.5
+    let x random 25 - random 25
+    let y random 25 - random 25
+    setxy x y
+    set school-number counter
+    set counter counter + 1
+    set color orange
   ]
 end
 
@@ -290,6 +307,11 @@ to check-area-status
     ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set supermarket-status "contaminated"]
     [set supermarket-status "not-contaminated"]
+  ]
+  ask schools [
+    ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
+      [set school-status "contaminated"]
+    [set school-status "not-contaminated"]
   ]
 end
 @#$#@#$#@
@@ -547,6 +569,21 @@ count turtles with [shape = \"person\"]
 17
 1
 11
+
+SLIDER
+18
+261
+213
+294
+number-of-schools
+number-of-schools
+1
+5
+5.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
