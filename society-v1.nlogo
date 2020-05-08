@@ -1,14 +1,16 @@
-globals[counter all-employees-home? all-idle?]
+globals[counter all-employees-home? all-employees-idle? all-children-home?]
 
 breed [employees employee]
 breed [houses house]
 breed [workplaces workplace]
 breed [supermarkets supermarket]
 breed [schools school]
+breed [children child]
 
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
 employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time infected-days]
+children-own[family-number school-number diagnosis where-now? idle? tested? infected-time infected-days schooling?]
 supermarkets-own[supermarket-number supermarket-status]
 schools-own[school-number school-status]
 patches-own[status]
@@ -21,6 +23,7 @@ to setup
   initialize-employees
   test-employees
   build-schools
+  initialize-children
   mark-sterile-zone
   identify-zones
   check-area-status
@@ -39,7 +42,7 @@ to go
     ]
     [move-from-workplace-to-home]
   )
-  if (all-idle? = true and all-employees-home? = true) [
+  if (all-employees-idle? = true and all-employees-home? = true) [
     ask employees with [infected-time > 8000] [
       set infected-days infected-days + 1
       set infected-time 1
@@ -145,6 +148,21 @@ to initialize-employees
   ]
 end
 
+to initialize-children
+  set all-children-home? true
+  ask houses [
+    hatch-children children-per-house [
+      set shape "person"
+      set family-number [family-number] of myself
+      set school-number random number-of-schools + 1
+      set where-now? "home"
+      set infected-days 0
+      set idle? true
+      set color white
+    ]
+  ]
+end
+
 to test-employees
   ask employees [
     (ifelse (color = red)
@@ -160,9 +178,24 @@ to test-employees
   ]
 end
 
+to test-children
+  ask children [
+    (ifelse (color = red)
+      [set diagnosis "infected"]
+      [set diagnosis "not-infected"])
+    (ifelse (random 100 < test-rate)
+      [set tested? true]
+      [set tested? false])
+    (ifelse (tested? = true and diagnosis = "infected")
+      [set can-work? false
+        set infected-time 1]
+      [set can-work? true])
+  ]
+end
+
 to move-to-workplace
   ask employees [
-    set all-idle? false
+    set all-employees-idle? false
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
     if ( [workplace-status] of employee-workplace = "contaminated" ) [
       set can-work? false
@@ -220,7 +253,7 @@ to move-from-workplace-to-home
     set all-employees-home? true
   ]
   if all? employees [idle? = true] [
-    set all-idle? true
+    set all-employees-idle? true
   ]
 end
 
@@ -400,7 +433,7 @@ number-of-houses
 number-of-houses
 1
 500
-36.0
+50.0
 1
 1
 NIL
@@ -468,7 +501,7 @@ INPUTBOX
 212
 106
 initial-infected
-20.0
+10.0
 1
 0
 Number
@@ -553,7 +586,7 @@ test-rate
 test-rate
 0
 100
-50.0
+30.0
 1
 1
 %
@@ -579,7 +612,22 @@ number-of-schools
 number-of-schools
 1
 5
-5.0
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+19
+319
+212
+352
+children-per-house
+children-per-house
+0
+5
+1.0
 1
 1
 NIL
