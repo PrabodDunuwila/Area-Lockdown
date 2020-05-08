@@ -25,42 +25,48 @@ to setup
 end
 
 to go
-  ask employees [
-    if (diagnosis = "infected" and tested? = true)
-      [set infected-time infected-time + 1]
+  ask employees with [diagnosis = "infected" and tested? = true] [
+    set infected-time infected-time + 1
   ]
-  ifelse (all-employees-home? = true)
-    [
-      move-to-workplace
-      ask employees
-        [set shopping random 100]
+  (ifelse (all-employees-home? = true) [
+    move-to-workplace
+    ask employees [
+      set shopping random 100
+    ]
     ]
     [move-from-workplace-to-home]
-  if (all-idle? = true and all-employees-home? = true)
-    [
-      ask employees [
-      if (infected-time > 8000) [
-        set infected-days infected-days + 1
-      ]
-      if (infected-days >= 2) [
-        set infected-days infected-days + 1
-        set color white
-        set diagnosis "not-infected"
-        set can-work? true
-        set tested? false
-        set infected-time 1
-        set infected-days 0
-        ask patches in-radius 8 [
-          if status != "not-contaminated"
-            [set pcolor green - 3
-             set status "not-contaminated"]
-        ]
-        identify-zones     ;;check this condition
+  )
+  if (all-idle? = true and all-employees-home? = true) [
+    ask employees with [infected-time > 8000] [
+      set infected-days infected-days + 1
+      set infected-time 1
+    ]
+    ask employees with [infected-days >= 2] [
+      set infected-days infected-days + 1
+      set color white
+      set diagnosis "not-infected"
+      set can-work? true
+      set tested? false
+      set infected-time 1
+      set infected-days 0
+      ask patches with [status != "not-contaminated"] in-radius 8 [
+        set pcolor green - 3
+        set status "not-contaminated"
       ]
     ]
-     test-employees
-     identify-zones
-     check-area-status
+    ask employees with [infected-days != 0 and infected-days < 2] [
+      ask patches with [status != "contaminated"] in-radius 8 [
+        set pcolor yellow - 3
+        set status "buffer"
+      ]
+      ask patches in-radius 4 [
+        set pcolor red - 3
+        set status "contaminated"
+      ]
+    ]
+    test-employees
+    identify-zones
+    check-area-status
   ]
   tick
 end
@@ -138,7 +144,7 @@ to test-employees
       [set tested? false])
     (ifelse (tested? = true and diagnosis = "infected")
       [set can-work? false
-       set infected-time 1]
+        set infected-time 1]
       [set can-work? true])
   ]
 end
@@ -163,10 +169,10 @@ to move-to-workplace
           set idle? false
           (ifelse has-car? = true
             [set shape "car"
-             set size 1
-             forward 0.1]
+              set size 1
+              forward 0.1]
             [forward 0.01])
-          ])
+      ])
       spread-disease
     ]
   ]
@@ -188,14 +194,14 @@ to move-from-workplace-to-home
         set where-now? "home"
         set idle? true
         stop
-      ]
-      [
-        (ifelse has-car? = true
-          [set shape "car"
-           set size 1
-           forward 0.06]
-          [forward 0.01])
-        ])
+        ]
+        [
+          (ifelse has-car? = true
+            [set shape "car"
+              set size 1
+              forward 0.06]
+            [forward 0.01])
+      ])
       spread-disease
     ]
   ]
@@ -216,14 +222,14 @@ to move-to-market
         [set shape "person"]
       set where-now? "supermarket"
       stop
-    ]
-    [
-      (ifelse has-car? = true
-        [set shape "car"
-         set size 1
-         forward 0.1]
-        [forward 0.01])
-      ])
+      ]
+      [
+        (ifelse has-car? = true
+          [set shape "car"
+            set size 1
+            forward 0.1]
+          [forward 0.01])
+    ])
     spread-disease
     ]
     [set where-now? "supermarket"])
@@ -246,24 +252,19 @@ to mark-sterile-zone
 end
 
 to mark-buffer-zone
-  ask employees [
-    if (tested? = true and diagnosis = "infected" and where-now? = "home") [
-      ask patches in-radius 8 [
-        if status != "contaminated"
-          [set pcolor yellow - 3
-           set status "buffer"]
-      ]
+  ask employees with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
+    ask patches with [status != "contaminated"] in-radius 8 [
+      set pcolor yellow - 3
+      set status "buffer"
     ]
   ]
 end
 
 to mark-contaminated-zone
-  ask employees [
-    if (tested? = true and diagnosis = "infected" and where-now? = "home") [
-      ask patches in-radius 4 [
-        set pcolor red - 3
-        set status "contaminated"
-      ]
+  ask employees with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
+    ask patches in-radius 4 [
+      set pcolor red - 3
+      set status "contaminated"
     ]
   ]
 end
@@ -281,12 +282,12 @@ to check-area-status
   ask workplaces [
     ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set workplace-status "contaminated"]
-      [set workplace-status "not-contaminated"]
+    [set workplace-status "not-contaminated"]
   ]
   ask supermarkets [
     ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set supermarket-status "contaminated"]
-      [set supermarket-status "not-contaminated"]
+    [set supermarket-status "not-contaminated"]
   ]
 end
 @#$#@#$#@
@@ -375,7 +376,7 @@ number-of-houses
 number-of-houses
 1
 500
-50.0
+100.0
 1
 1
 NIL
@@ -443,7 +444,7 @@ INPUTBOX
 212
 106
 initial-infected
-10.0
+20.0
 1
 0
 Number
@@ -457,7 +458,7 @@ spread-rate
 spread-rate
 0
 1
-0.6
+0.3
 0.1
 1
 NIL
@@ -528,7 +529,7 @@ test-rate
 test-rate
 0
 100
-30.0
+50.0
 1
 1
 %
