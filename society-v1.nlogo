@@ -21,7 +21,6 @@ to setup
   build-supermarkets
   build-workplaces
   initialize-employees
-  test-employees
   if (open-schools? = true)[
     build-schools
     initialize-children
@@ -36,7 +35,11 @@ to go
 
   let people (turtle-set employees children)
 
-  ask people with [diagnosis = "infected" and tested? = true] [
+  ask employees with [diagnosis = "infected" and tested? = true] [
+    set infected-time infected-time + 1
+  ]
+
+  ask children with [diagnosis = "infected" and tested? = true] [
     set infected-time infected-time + 1
   ]
 
@@ -51,24 +54,16 @@ to go
       move-from-workplace-to-home
     ]
     if (all-employees-idle? = true and all-employees-home? = true) [
-      ask employees with [infected-time > 8000] [
-        set infected-days infected-days + 1
-        set infected-time 1
-      ]
-      ask employees with [infected-days >= 2] [
-        set infected-days infected-days + 1
+      ask employees with [infected-time >= 20000] [
         set color white
         set diagnosis "not-infected"
         set can-work? true
         set tested? false
-        set infected-time 1
-        set infected-days 0
+        set infected-time 0
         ask patches with [status != "not-contaminated"] in-radius 8 [
           set pcolor green - 3
           set status "not-contaminated"
         ]
-      ]
-      ask employees with [infected-days != 0 and infected-days < 2] [
         draw-buffer-circle
         draw-contaminated-circle
       ]
@@ -210,6 +205,18 @@ to initialize-employees
       set counter counter - 1
     ]
   ]
+  ask employees [
+    (ifelse (color = red)
+      [set diagnosis "infected"]
+      [set diagnosis "not-infected"])
+    (ifelse (random 100 < test-rate)
+      [set tested? true]
+      [set tested? false])
+    (ifelse (tested? = true and diagnosis = "infected")
+      [set can-work? false
+        set infected-time 1]
+      [set can-work? true])
+  ]
 end
 
 to initialize-children
@@ -237,7 +244,7 @@ to test-employees
     (ifelse (color = red)
       [set diagnosis "infected"]
       [set diagnosis "not-infected"])
-    (ifelse (random 100 < test-rate)
+    (ifelse (random 100 < test-rate and diagnosis = "non-infected" and tested? = false)
       [set tested? true]
       [set tested? false])
     (ifelse (tested? = true and diagnosis = "infected")
@@ -741,7 +748,7 @@ test-rate
 test-rate
 0
 100
-30.0
+100.0
 1
 1
 %
@@ -795,7 +802,7 @@ SWITCH
 291
 open-schools?
 open-schools?
-0
+1
 1
 -1000
 
