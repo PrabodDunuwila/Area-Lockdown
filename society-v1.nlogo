@@ -33,64 +33,103 @@ to setup
 end
 
 to go
+
   let people (turtle-set employees children)
+
   ask people with [diagnosis = "infected" and tested? = true] [
     set infected-time infected-time + 1
   ]
-  if ((all-employees-home? = true or employee-activity = "going-work") and (all-children-home? = true or children-activity = "going-school")) [
-    move-to-workplace
-    if (open-schools? = true)[
-      move-to-school
+
+  ifelse (open-schools? = false) [
+    if (all-employees-home? = true or employee-activity = "going-work") [
+      move-to-workplace
+      ask employees [
+        set shopping random 100
+      ]
     ]
-    ask employees [
-      set shopping random 100
+    if (all-employees-home? = false or employee-activity = "going-home") [
+      move-from-workplace-to-home
     ]
-    ]
-  if ((all-employees-home? = false or employee-activity = "going-home") and (all-children-home? = false or children-activity = "going-home")) [
-    move-from-workplace-to-home
-    if (open-schools? = true)[
-      move-from-school-to-home
+    if (all-employees-idle? = true and all-employees-home? = true) [
+      ask employees with [infected-time > 8000] [
+        set infected-days infected-days + 1
+        set infected-time 1
+      ]
+      ask employees with [infected-days >= 2] [
+        set infected-days infected-days + 1
+        set color white
+        set diagnosis "not-infected"
+        set can-work? true
+        set tested? false
+        set infected-time 1
+        set infected-days 0
+        ask patches with [status != "not-contaminated"] in-radius 8 [
+          set pcolor green - 3
+          set status "not-contaminated"
+        ]
+      ]
+      ask employees with [infected-days != 0 and infected-days < 2] [
+        draw-buffer-circle
+        draw-contaminated-circle
+      ]
+      test-employees
+      identify-zones
+      check-area-status
     ]
   ]
-  if (all-employees-idle? = true and all-employees-home? = true and all-children-idle? = true and all-children-home? = true) [
-    ask people with [infected-time > 8000] [
-      set infected-days infected-days + 1
-      set infected-time 1
-    ]
-    ask employees with [infected-days >= 2] [
-      set infected-days infected-days + 1
-      set color white
-      set diagnosis "not-infected"
-      set can-work? true
-      set tested? false
-      set infected-time 1
-      set infected-days 0
-      ask patches with [status != "not-contaminated"] in-radius 8 [
-        set pcolor green - 3
-        set status "not-contaminated"
+  ;if (schools-open? = true)
+  [
+    if ((all-employees-home? = true or employee-activity = "going-work") and (all-children-home? = true or children-activity = "going-school")) [
+      move-to-workplace
+      move-to-school
+      ask employees [
+        set shopping random 100
       ]
     ]
-    ask children with [infected-days >= 2] [
-      set infected-days infected-days + 1
-      set color white
-      set diagnosis "not-infected"
-      set schooling? true
-      set tested? false
-      set infected-time 1
-      set infected-days 0
-      ask patches with [status != "not-contaminated"] in-radius 8 [
-        set pcolor green - 3
-        set status "not-contaminated"
+    if ((all-employees-home? = false or employee-activity = "going-home") and (all-children-home? = false or children-activity = "going-home")) [
+      move-from-workplace-to-home
+      move-from-school-to-home
+    ]
+    if (all-employees-idle? = true and all-employees-home? = true and all-children-idle? = true and all-children-home? = true) [
+      ask people with [infected-time > 8000] [
+        set infected-days infected-days + 1
+        set infected-time 1
       ]
+      ask employees with [infected-days >= 2] [
+        set infected-days infected-days + 1
+        set color white
+        set diagnosis "not-infected"
+        set can-work? true
+        set tested? false
+        set infected-time 1
+        set infected-days 0
+        ask patches with [status != "not-contaminated"] in-radius 8 [
+          set pcolor green - 3
+          set status "not-contaminated"
+        ]
+      ]
+      ask children with [infected-days >= 2] [
+        set infected-days infected-days + 1
+        set color white
+        set diagnosis "not-infected"
+        set schooling? true
+        set tested? false
+        set infected-time 1
+        set infected-days 0
+        ask patches with [status != "not-contaminated"] in-radius 8 [
+          set pcolor green - 3
+          set status "not-contaminated"
+        ]
+      ]
+      ask people with [infected-days != 0 and infected-days < 2] [
+        draw-buffer-circle
+        draw-contaminated-circle
+      ]
+      test-employees
+      test-children
+      identify-zones
+      check-area-status
     ]
-    ask people with [infected-days != 0 and infected-days < 2] [
-      draw-buffer-circle
-      draw-contaminated-circle
-    ]
-    test-employees
-    test-children
-    identify-zones
-    check-area-status
   ]
   tick
 end
@@ -549,7 +588,7 @@ number-of-houses
 number-of-houses
 1
 500
-50.0
+30.0
 1
 1
 NIL
@@ -564,7 +603,7 @@ employees-per-house
 employees-per-house
 1
 4
-2.0
+1.0
 1
 1
 NIL
@@ -617,7 +656,7 @@ INPUTBOX
 212
 106
 initial-infected
-10.0
+1.0
 1
 0
 Number
@@ -631,7 +670,7 @@ spread-rate
 spread-rate
 0
 1
-0.3
+0.0
 0.1
 1
 NIL
