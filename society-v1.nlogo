@@ -134,13 +134,15 @@ to initialize-employees
 end
 
 to test-employees
+  ask employees with [tested? != true or diagnosis != "infected"] [   ;de morgan
+    (ifelse (random 100 < test-rate)
+      [set tested? true]
+      [set tested? false])
+  ]
   ask employees [
     (ifelse (color = red)
       [set diagnosis "infected"]
       [set diagnosis "not-infected"])
-    (ifelse (random 100 < test-rate and tested? = false and diagnosis != "infected")
-      [set tested? true]
-      [set tested? false])
     (ifelse (tested? = true and diagnosis = "infected")
       [set can-work? false]
       [set can-work? true])
@@ -450,7 +452,7 @@ INPUTBOX
 212
 106
 initial-infected
-3.0
+30.0
 1
 0
 Number
@@ -535,7 +537,7 @@ test-rate
 test-rate
 0
 100
-100.0
+20.0
 1
 1
 %
