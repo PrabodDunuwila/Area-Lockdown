@@ -38,7 +38,7 @@ to go
     [move-from-workplace-to-home]
   )
   if (all-employees-idle? = true and all-employees-home? = true) [
-    ask employees with [infected-time >= 20000] [
+    ask employees with [infected-time >= quarantine-days * 10000] [
       set color white
       set diagnosis "not-infected"
       set can-work? true
@@ -49,7 +49,7 @@ to go
         set status "not-contaminated"
       ]
     ]
-    ask employees with [infected-time > 0 and infected-time < 20000] [
+    ask employees with [infected-time > 0 and infected-time < quarantine-days * 10000] [
       draw-buffer-circle
       draw-contaminated-circle
     ]
@@ -329,10 +329,10 @@ ticks
 30.0
 
 BUTTON
-22
-10
-107
-55
+20
+11
+116
+67
 NIL
 setup
 NIL
@@ -346,10 +346,10 @@ NIL
 1
 
 BUTTON
-21
-62
-106
-106
+19
+80
+117
+132
 NIL
 go
 T
@@ -364,9 +364,9 @@ NIL
 
 SLIDER
 238
-116
+142
 437
-149
+175
 number-of-workplaces
 number-of-workplaces
 1
@@ -379,9 +379,9 @@ HORIZONTAL
 
 SLIDER
 17
-116
+143
 216
-149
+176
 number-of-houses
 number-of-houses
 1
@@ -394,14 +394,14 @@ HORIZONTAL
 
 SLIDER
 15
-164
+190
 216
-197
+223
 employees-per-house
 employees-per-house
 1
 4
-1.0
+2.0
 1
 1
 NIL
@@ -452,33 +452,33 @@ INPUTBOX
 133
 10
 212
-106
+132
 initial-infected
-1.0
+10.0
 1
 0
 Number
 
 SLIDER
 236
-13
+10
 435
-46
+43
 spread-rate
 spread-rate
 0
 1
-0.0
+0.4
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-238
-257
-438
-290
+243
+279
+443
+312
 number-of-supermarkets
 number-of-supermarkets
 1
@@ -502,9 +502,9 @@ count turtles with [shape = \"person\" and color = red] / (count turtles with [s
 
 SLIDER
 238
-163
+189
 436
-196
+222
 private-transport
 private-transport
 0
@@ -516,10 +516,10 @@ private-transport
 HORIZONTAL
 
 SLIDER
-237
-301
-436
-334
+242
+323
+441
+356
 go-shopping
 go-shopping
 0
@@ -532,14 +532,14 @@ HORIZONTAL
 
 SLIDER
 236
-58
+53
 437
-91
+86
 test-rate
 test-rate
 0
 100
-100.0
+30.0
 1
 1
 %
@@ -558,9 +558,9 @@ count turtles with [shape = \"person\"]
 
 SLIDER
 240
-212
+235
 435
-245
+268
 number-of-schools
 number-of-schools
 1
@@ -572,10 +572,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-16
-211
-218
-244
+17
+235
+219
+268
 children-per-house
 children-per-house
 0
@@ -587,15 +587,30 @@ NIL
 HORIZONTAL
 
 SWITCH
-16
-258
-220
-291
+17
+279
+221
+312
 open-schools?
 open-schools?
 1
 1
 -1000
+
+SLIDER
+237
+97
+438
+130
+quarantine-days
+quarantine-days
+1
+20
+1.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
