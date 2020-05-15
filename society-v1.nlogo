@@ -1,4 +1,4 @@
-globals[counter all-employees-home? all-idle?]
+globals[counter all-employees-home? all-employees-idle?]
 
 breed [employees employee]
 breed [houses house]
@@ -7,7 +7,7 @@ breed [supermarkets supermarket]
 
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
-employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time infected-days]
+employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time]
 supermarkets-own[supermarket-number supermarket-status]
 patches-own[status]
 
@@ -17,7 +17,6 @@ to setup
   build-supermarkets
   build-workplaces
   initialize-employees
-  test-employees
   mark-sterile-zone
   identify-zones
   check-area-status
@@ -36,25 +35,19 @@ to go
     ]
     [move-from-workplace-to-home]
   )
-  if (all-idle? = true and all-employees-home? = true) [
-    ask employees with [infected-time > 8000] [
-      set infected-days infected-days + 1
-      set infected-time 1
-    ]
-    ask employees with [infected-days >= 2] [
-      set infected-days infected-days + 1
+  if (all-employees-idle? = true and all-employees-home? = true) [
+    ask employees with [infected-time >= 20000] [
       set color white
       set diagnosis "not-infected"
       set can-work? true
       set tested? false
-      set infected-time 1
-      set infected-days 0
+      set infected-time 0
       ask patches with [status != "not-contaminated"] in-radius 8 [
         set pcolor green - 3
         set status "not-contaminated"
       ]
     ]
-    ask employees with [infected-days != 0 and infected-days < 2] [
+    ask employees with [infected-time > 0 and infected-time < 20000] [
       draw-buffer-circle
       draw-contaminated-circle
     ]
@@ -114,38 +107,51 @@ to initialize-employees
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
       set where-now? "home"
-      set infected-days 0
       set supermarket-number random number-of-supermarkets + 1
       set idle? true
+      set infected-time 0
       (ifelse (random 100 < private-transport)
         [set has-car? true]
         [set has-car? false])
       (ifelse (counter > 0)
-        [set color red]
-        [set color white])
+        [
+          set color red
+          set diagnosis "infected"
+        ]
+        [
+          set color white
+          set diagnosis "not-infected"
+      ])
+      (ifelse (random 100 < test-rate)
+        [set tested? true]
+        [set tested? false])
+      (ifelse (tested? = true and diagnosis = "infected")
+        [set can-work? false]
+        [set can-work? true])
       set counter counter - 1
     ]
   ]
 end
 
 to test-employees
+  ask employees with [tested? != true or diagnosis != "infected"] [   ;de morgan
+    (ifelse (random 100 < test-rate)
+      [set tested? true]
+      [set tested? false])
+  ]
   ask employees [
     (ifelse (color = red)
       [set diagnosis "infected"]
       [set diagnosis "not-infected"])
-    (ifelse (random 100 < test-rate)
-      [set tested? true]
-      [set tested? false])
     (ifelse (tested? = true and diagnosis = "infected")
-      [set can-work? false
-        set infected-time 1]
+      [set can-work? false]
       [set can-work? true])
   ]
 end
 
 to move-to-workplace
   ask employees [
-    set all-idle? false
+    set all-employees-idle? false
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
     if ( [workplace-status] of employee-workplace = "contaminated" ) [
       set can-work? false
@@ -203,7 +209,7 @@ to move-from-workplace-to-home
     set all-employees-home? true
   ]
   if all? employees [idle? = true] [
-    set all-idle? true
+    set all-employees-idle? true
   ]
 end
 
@@ -446,7 +452,7 @@ INPUTBOX
 212
 106
 initial-infected
-20.0
+30.0
 1
 0
 Number
@@ -531,7 +537,7 @@ test-rate
 test-rate
 0
 100
-50.0
+20.0
 1
 1
 %
