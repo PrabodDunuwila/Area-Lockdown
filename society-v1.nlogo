@@ -4,6 +4,8 @@ breed [employees employee]
 breed [houses house]
 breed [workplaces workplace]
 breed [supermarkets supermarket]
+breed [schools school]
+breed [children child]
 
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
@@ -361,10 +363,10 @@ NIL
 1
 
 SLIDER
-16
-210
-213
-243
+238
+116
+437
+149
 number-of-workplaces
 number-of-workplaces
 1
@@ -384,22 +386,22 @@ number-of-houses
 number-of-houses
 1
 500
-36.0
+30.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-16
-161
-213
-194
+15
+164
+216
+197
 employees-per-house
 employees-per-house
 1
 4
-2.0
+1.0
 1
 1
 NIL
@@ -452,31 +454,31 @@ INPUTBOX
 212
 106
 initial-infected
-30.0
+1.0
 1
 0
 Number
 
 SLIDER
-233
-116
-432
-149
+236
+13
+435
+46
 spread-rate
 spread-rate
 0
 1
-0.3
+0.0
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-233
-162
-433
-195
+238
+257
+438
+290
 number-of-supermarkets
 number-of-supermarkets
 1
@@ -499,10 +501,10 @@ count turtles with [shape = \"person\" and color = red] / (count turtles with [s
 11
 
 SLIDER
-233
-67
-431
-100
+238
+163
+436
+196
 private-transport
 private-transport
 0
@@ -514,10 +516,10 @@ private-transport
 HORIZONTAL
 
 SLIDER
-232
-20
-431
-53
+237
+301
+436
+334
 go-shopping
 go-shopping
 0
@@ -529,15 +531,15 @@ go-shopping
 HORIZONTAL
 
 SLIDER
-232
-210
-433
-243
+236
+58
+437
+91
 test-rate
 test-rate
 0
 100
-20.0
+100.0
 1
 1
 %
@@ -553,6 +555,47 @@ count turtles with [shape = \"person\"]
 17
 1
 11
+
+SLIDER
+240
+212
+435
+245
+number-of-schools
+number-of-schools
+1
+5
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+16
+211
+218
+244
+children-per-house
+children-per-house
+0
+5
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SWITCH
+16
+258
+220
+291
+open-schools?
+open-schools?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
