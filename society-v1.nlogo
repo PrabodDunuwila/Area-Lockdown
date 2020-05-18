@@ -1,4 +1,4 @@
-globals[counter all-employees-home? all-employees-idle? all-children-home? all-children-idle? employee-activity children-activity]
+globals[counter all-employees-home? all-employees-idle? all-grandparents-home? all-children-home? all-children-idle? employee-activity children-activity]
 
 breed [employees employee]
 breed [houses house]
@@ -6,11 +6,13 @@ breed [workplaces workplace]
 breed [supermarkets supermarket]
 breed [schools school]
 breed [children child]
+breed [grandparents grandparent]
 
 houses-own[family-number]
 workplaces-own[workplace-number workplace-status]
 employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time activity]
 children-own[family-number school-number diagnosis where-now? idle? tested? infected-time schooling? activity]
+grandparents-own[family-number diagnosis where-now? tested? infected-time go-out?]
 supermarkets-own[supermarket-number supermarket-status]
 schools-own[school-number school-status]
 patches-own[status]
@@ -21,6 +23,7 @@ to setup
   build-supermarkets
   build-workplaces
   initialize-employees
+  initialize-grandparents
   if (open-schools? = true)[
     build-schools
     initialize-children
@@ -33,21 +36,24 @@ end
 
 to go
 
-  let people (turtle-set employees children)
+  let people (turtle-set employees grandparents children)
 
   ask people with [diagnosis = "infected" and tested? = true] [
     set infected-time infected-time + 1
   ]
   ifelse (open-schools? = false) [
-    (ifelse (all-employees-home? = true) [
+    (ifelse (all-employees-home? = true and all-grandparents-home? = true) [
       move-to-workplace
+      move-out-grandparents
       ask employees [
         set shopping random 100
       ]
       ]
-      [move-from-workplace-to-home]
-    )
-    if (all-employees-idle? = true and all-employees-home? = true) [
+      [
+        move-from-workplace-to-home
+        move-grandparents-home
+    ])
+    if (all-employees-idle? = true and all-employees-home? = true and all-grandparents-home? = true) [
       ask employees with [infected-time >= quarantine-days * 10000] [
         set color white
         set diagnosis "not-infected"
@@ -59,11 +65,27 @@ to go
           set status "not-contaminated"
         ]
       ]
+      ask grandparents with [infected-time >= quarantine-days * 10000] [
+        set color white
+        set diagnosis "not-infected"
+        set go-out? true
+        set tested? false
+        set infected-time 0
+        ask patches with [status != "not-contaminated"] in-radius 8 [
+          set pcolor green - 3
+          set status "not-contaminated"
+        ]
+      ]
       ask employees with [infected-time > 0 and infected-time < quarantine-days * 10000] [
         draw-buffer-circle
         draw-contaminated-circle
       ]
+      ask grandparents with [infected-time > 0 and infected-time < quarantine-days * 10000] [
+        draw-buffer-circle
+        draw-contaminated-circle
+      ]
       test-employees
+      test-grandparents
       identify-zones
       check-area-status
     ]
@@ -207,6 +229,22 @@ to initialize-employees
   ]
 end
 
+to initialize-grandparents
+  set all-grandparents-home? true
+  ask houses [
+    hatch-grandparents grandparents-per-house [
+      set shape "person"
+      set family-number [family-number] of myself
+      set where-now? "home"
+      set infected-time 0
+      set color white
+      set diagnosis "not-infected"
+      set tested? true
+      set go-out? true
+    ]
+  ]
+end
+
 to initialize-children
   set all-children-home? true
   ask houses [
@@ -239,6 +277,22 @@ to test-employees
     (ifelse (tested? = true and diagnosis = "infected")
       [set can-work? false]
       [set can-work? true])
+  ]
+end
+
+to test-grandparents
+  ask grandparents with [tested? != true or diagnosis != "infected"] [
+    (ifelse (random 100 < test-rate)
+      [set tested? true]
+      [set tested? false])
+  ]
+  ask grandparents [
+    (ifelse (color = red)
+      [set diagnosis "infected"]
+      [set diagnosis "not-infected"])
+    (ifelse (tested? = true and diagnosis = "infected")
+      [set go-out? false]
+      [set go-out? true])
   ]
 end
 
@@ -292,6 +346,16 @@ to move-to-workplace
   ]
   if all? employees [where-now? = "workplace" or can-work? = false] [
     set all-employees-home? false
+  ]
+end
+
+to move-out-grandparents
+  ask grandparents with [go-out? = true] [
+    set where-now? "out"
+    rt random 50
+    lt random 50
+    forward 0.005
+    spread-disease
   ]
 end
 
@@ -385,6 +449,24 @@ to move-to-market
     [set where-now? "supermarket"])
 end
 
+to move-grandparents-home
+  ask grandparents with [where-now? != "home"] [
+    let family-place one-of houses with [family-number = [family-number] of myself]
+    face family-place
+    (ifelse any? houses with [family-number = [family-number] of myself] in-radius 1 [
+      set where-now? "home"
+      stop
+      ]
+      [
+        forward 0.005
+    ])
+    spread-disease
+  ]
+  if all? grandparents [where-now? = "home"] [
+    set all-grandparents-home? true
+  ]
+end
+
 to move-from-school-to-home
   ask children [
     if (where-now? = "school") [
@@ -421,6 +503,12 @@ to spread-disease
       set diagnosis "infected"
     ]
   ]
+  if any? grandparents with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
+    if random 100 < spread-rate * 100 and shape = "person" [
+      set color red
+      set diagnosis "infected"
+    ]
+  ]
   if any? children with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
     if random 100 < spread-rate * 100 and shape = "person" [
       set color red
@@ -447,6 +535,9 @@ to mark-buffer-zone
   ask employees with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-buffer-circle
   ]
+  ask grandparents with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
+    draw-buffer-circle
+  ]
   ask children with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-buffer-circle
   ]
@@ -463,6 +554,9 @@ to mark-contaminated-zone
   ask employees with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-contaminated-circle
   ]
+  ask grandparents with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
+    draw-contaminated-circle
+  ]
   ask children with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-contaminated-circle
   ]
@@ -477,6 +571,10 @@ to check-area-status
   ask employees [
     if ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set can-work? false]
+  ]
+  ask grandparents [
+    if ([pcolor] of one-of patches in-radius 1 = red - 3 )
+      [set go-out? false]
   ]
   ask children [
     if ([pcolor] of one-of patches in-radius 1 = red - 3 )
@@ -584,7 +682,7 @@ number-of-houses
 number-of-houses
 1
 500
-30.0
+20.0
 1
 1
 NIL
@@ -652,7 +750,7 @@ INPUTBOX
 212
 132
 initial-infected
-10.0
+5.0
 1
 0
 Number
@@ -666,7 +764,7 @@ spread-rate
 spread-rate
 0
 1
-0.4
+0.2
 0.1
 1
 NIL
@@ -804,6 +902,21 @@ quarantine-days
 quarantine-days
 1
 20
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+17
+322
+223
+355
+grandparents-per-house
+grandparents-per-house
+0
+4
 1.0
 1
 1
