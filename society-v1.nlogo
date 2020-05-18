@@ -9,12 +9,12 @@ breed [children child]
 breed [grandparents grandparent]
 
 houses-own[family-number]
-workplaces-own[workplace-number workplace-status]
+workplaces-own[workplace-number building-status]
 employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time activity]
 children-own[family-number school-number diagnosis where-now? idle? tested? infected-time schooling? activity]
 grandparents-own[family-number diagnosis where-now? tested? infected-time go-out?]
-supermarkets-own[supermarket-number supermarket-status]
-schools-own[school-number school-status]
+supermarkets-own[supermarket-number building-status]
+schools-own[school-number building-status]
 patches-own[status]
 
 to setup
@@ -313,7 +313,7 @@ to move-to-workplace
   ask employees [
     set all-employees-idle? false
     let employee-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
-    if ( [workplace-status] of employee-workplace = "contaminated" ) [
+    if ( [building-status] of employee-workplace = "contaminated" ) [
       set can-work? false
     ]
     if (can-work? = true) [
@@ -360,7 +360,7 @@ to move-to-school
   ask children [
     set all-children-idle? false
     let child-school one-of schools with [school-number = [school-number] of myself]
-    if ( [school-status] of child-school = "contaminated" ) [
+    if ( [building-status] of child-school = "contaminated" ) [
       set schooling? false
     ]
     if (schooling? = true) [
@@ -426,7 +426,7 @@ end
 
 to move-to-market
   let market-place one-of supermarkets with [supermarket-number = [supermarket-number] of myself]
-  (ifelse [supermarket-status] of market-place != "contaminated" [
+  (ifelse [building-status] of market-place != "contaminated" [
     face market-place
     (ifelse any? supermarkets with [supermarket-number = [supermarket-number] of myself] in-radius 1 [
       if has-car? = true
@@ -556,20 +556,11 @@ to check-area-status
     if ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set schooling? false]
   ]
-  ask workplaces [
+  let buildings (turtle-set workplaces supermarkets schools)
+  ask buildings [
     ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
-      [set workplace-status "contaminated"]
-    [set workplace-status "not-contaminated"]
-  ]
-  ask supermarkets [
-    ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
-      [set supermarket-status "contaminated"]
-    [set supermarket-status "not-contaminated"]
-  ]
-  ask schools [
-    ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
-      [set school-status "contaminated"]
-    [set school-status "not-contaminated"]
+      [set building-status "contaminated"]
+    [set building-status "not-contaminated"]
   ]
 end
 @#$#@#$#@
@@ -695,8 +686,8 @@ true
 true
 "" ""
 PENS
-"infected" 1.0 0 -2674135 true "" "plot (count employees with [color = red] + count children with [color = red])"
-"not-infected" 1.0 0 -10899396 true "" "plot (count employees with [color = white] + count children with [color = white])"
+"infected" 1.0 0 -2674135 true "" "let people (turtle-set employees grandparents children)\nplot (count people with [color = red])"
+"not-infected" 1.0 0 -10899396 true "" "let people (turtle-set employees grandparents children)\nplot (count people with [color = white])"
 
 MONITOR
 117
