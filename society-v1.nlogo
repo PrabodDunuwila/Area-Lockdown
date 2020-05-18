@@ -37,6 +37,11 @@ end
 to go
 
   let people (turtle-set employees grandparents children)
+  let people-no-children (turtle-set employees grandparents)
+
+  if all? people [diagnosis = "not-infected"] [
+    stop
+  ]
 
   ask people with [diagnosis = "infected" and tested? = true] [
     set infected-time infected-time + 1
@@ -54,33 +59,24 @@ to go
         move-grandparents-home
     ])
     if (all-employees-idle? = true and all-employees-home? = true and all-grandparents-home? = true) [
-      ask employees with [infected-time >= quarantine-days * 10000] [
+      let get-quarantine-time quarantine-days * 10000
+      ask people-no-children with [infected-time >= get-quarantine-time] [
         set color white
         set diagnosis "not-infected"
+        set tested? false
+        set infected-time 0
+        ask patches with [status != "not-contaminated"] in-radius 8 [
+          set pcolor green - 3
+          set status "not-contaminated"
+        ]
+      ]
+      ask employees with [infected-time >= get-quarantine-time] [
         set can-work? true
-        set tested? false
-        set infected-time 0
-        ask patches with [status != "not-contaminated"] in-radius 8 [
-          set pcolor green - 3
-          set status "not-contaminated"
-        ]
       ]
-      ask grandparents with [infected-time >= quarantine-days * 10000] [
-        set color white
-        set diagnosis "not-infected"
+      ask grandparents with [infected-time >= get-quarantine-time] [
         set go-out? true
-        set tested? false
-        set infected-time 0
-        ask patches with [status != "not-contaminated"] in-radius 8 [
-          set pcolor green - 3
-          set status "not-contaminated"
-        ]
       ]
-      ask employees with [infected-time > 0 and infected-time < quarantine-days * 10000] [
-        draw-buffer-circle
-        draw-contaminated-circle
-      ]
-      ask grandparents with [infected-time > 0 and infected-time < quarantine-days * 10000] [
+      ask people-no-children with [infected-time > 0 and infected-time < get-quarantine-time] [
         draw-buffer-circle
         draw-contaminated-circle
       ]
@@ -92,8 +88,9 @@ to go
   ]
   ;if (schools-open? = true)
   [
-    if ((all-employees-home? = true or employee-activity = "going-work") and (all-children-home? = true or children-activity = "going-school")) [
+    if ((all-employees-home? = true or employee-activity = "going-work") and (all-children-home? = true or children-activity = "going-school") and all-grandparents-home? = true) [
       move-to-workplace
+      move-out-grandparents
       move-to-school
       ask employees [
         set shopping random 100
@@ -101,36 +98,36 @@ to go
     ]
     if ((all-employees-home? = false or employee-activity = "going-home") and (all-children-home? = false or children-activity = "going-home")) [
       move-from-workplace-to-home
+      move-grandparents-home
       move-from-school-to-home
     ]
-    if (all-employees-idle? = true and all-employees-home? = true and all-children-idle? = true and all-children-home? = true) [
-      ask employees with [infected-time >= quarantine-days * 10000] [
+    if (all-employees-idle? = true and all-employees-home? = true and all-children-idle? = true and all-children-home? = true and all-grandparents-home? = true) [
+      let get-quarantine-time quarantine-days * 10000
+      ask people with [infected-time >= get-quarantine-time] [
         set color white
         set diagnosis "not-infected"
+        set tested? false
+        set infected-time 0
+        ask patches with [status != "not-contaminated"] in-radius 8 [
+          set pcolor green - 3
+          set status "not-contaminated"
+        ]
+      ]
+      ask employees with [infected-time >= get-quarantine-time] [
         set can-work? true
-        set tested? false
-        set infected-time 0
-        ask patches with [status != "not-contaminated"] in-radius 8 [
-          set pcolor green - 3
-          set status "not-contaminated"
-        ]
       ]
-      ask children with [infected-time >= quarantine-days * 10000] [
-        set color white
-        set diagnosis "not-infected"
+      ask children with [infected-time >= get-quarantine-time] [
         set schooling? true
-        set tested? false
-        set infected-time 0
-        ask patches with [status != "not-contaminated"] in-radius 8 [
-          set pcolor green - 3
-          set status "not-contaminated"
-        ]
       ]
-      ask people with [infected-time > 0 and infected-time < quarantine-days * 10000] [
+      ask grandparents with [infected-time >= get-quarantine-time] [
+        set go-out? true
+      ]
+      ask people with [infected-time > 0 and infected-time < get-quarantine-time] [
         draw-buffer-circle
         draw-contaminated-circle
       ]
       test-employees
+      test-grandparents
       test-children
       identify-zones
       check-area-status
@@ -352,8 +349,8 @@ end
 to move-out-grandparents
   ask grandparents with [go-out? = true] [
     set where-now? "out"
-    rt random 50
-    lt random 50
+    rt random 10
+    lt random 10
     forward 0.005
     spread-disease
   ]
@@ -497,19 +494,8 @@ to move-from-school-to-home
 end
 
 to spread-disease
-  if any? employees with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.1 [
-    if random 100 < spread-rate * 100 and shape = "person" [
-      set color red
-      set diagnosis "infected"
-    ]
-  ]
-  if any? grandparents with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
-    if random 100 < spread-rate * 100 and shape = "person" [
-      set color red
-      set diagnosis "infected"
-    ]
-  ]
-  if any? children with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
+  let people (turtle-set employees grandparents children)
+  if any? people with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
     if random 100 < spread-rate * 100 and shape = "person" [
       set color red
       set diagnosis "infected"
@@ -532,13 +518,8 @@ to draw-buffer-circle
 end
 
 to mark-buffer-zone
-  ask employees with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    draw-buffer-circle
-  ]
-  ask grandparents with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    draw-buffer-circle
-  ]
-  ask children with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
+  let people (turtle-set employees grandparents children)
+  ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-buffer-circle
   ]
 end
@@ -551,13 +532,8 @@ to draw-contaminated-circle
 end
 
 to mark-contaminated-zone
-  ask employees with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    draw-contaminated-circle
-  ]
-  ask grandparents with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    draw-contaminated-circle
-  ]
-  ask children with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
+  let people (turtle-set employees grandparents children)
+  ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-contaminated-circle
   ]
 end
@@ -750,7 +726,7 @@ INPUTBOX
 212
 132
 initial-infected
-5.0
+10.0
 1
 0
 Number
@@ -764,7 +740,7 @@ spread-rate
 spread-rate
 0
 1
-0.2
+0.5
 0.1
 1
 NIL
@@ -889,7 +865,7 @@ SWITCH
 312
 open-schools?
 open-schools?
-1
+0
 1
 -1000
 
