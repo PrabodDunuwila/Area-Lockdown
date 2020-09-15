@@ -37,7 +37,6 @@ end
 to go
 
   let people (turtle-set employees grandparents children)
-  let people-no-children (turtle-set employees grandparents)
 
   if all? people [diagnosis = "not-infected"] [
     stop
@@ -48,6 +47,43 @@ to go
   ]
   ifelse (open-schools? = false) [
     (ifelse (all-employees-home? = true and all-grandparents-home? = true) [
+      if (all-employees-idle? = true and all-employees-home? = true and all-grandparents-home? = true) [
+        let get-lockdown-time lockdown-days * 10000
+        ask employees with [infected-time >= get-lockdown-time] [
+          set color white
+          set diagnosis "not-infected"
+          set tested? false
+          set infected-time 0
+          ask patches with [status != "not-contaminated"] in-radius 8 [
+            set pcolor green - 3
+            set status "not-contaminated"
+          ]
+          set can-work? true
+        ]
+        ask grandparents with [infected-time >= get-lockdown-time] [
+          set color white
+          set diagnosis "not-infected"
+          set tested? false
+          set infected-time 0
+          ask patches with [status != "not-contaminated"] in-radius 8 [
+            set pcolor green - 3
+            set status "not-contaminated"
+          ]
+          set go-out? true
+        ]
+        ask employees with [infected-time > 0 and infected-time < get-lockdown-time] [
+          draw-buffer-circle
+          draw-contaminated-circle
+        ]
+        ask grandparents with [infected-time > 0 and infected-time < get-lockdown-time] [
+          draw-buffer-circle
+          draw-contaminated-circle
+        ]
+        test-employees
+        test-grandparents
+        identify-zones
+        check-area-status
+      ]
       move-to-workplace
       move-out-grandparents
       ask employees [
@@ -58,37 +94,41 @@ to go
         move-from-workplace-to-home
         move-grandparents-home
     ])
-    if (all-employees-idle? = true and all-employees-home? = true and all-grandparents-home? = true) [
-      let get-quarantine-time quarantine-days * 10000
-      ask people-no-children with [infected-time >= get-quarantine-time] [
-        set color white
-        set diagnosis "not-infected"
-        set tested? false
-        set infected-time 0
-        ask patches with [status != "not-contaminated"] in-radius 8 [
-          set pcolor green - 3
-          set status "not-contaminated"
-        ]
-      ]
-      ask employees with [infected-time >= get-quarantine-time] [
-        set can-work? true
-      ]
-      ask grandparents with [infected-time >= get-quarantine-time] [
-        set go-out? true
-      ]
-      ask people-no-children with [infected-time > 0 and infected-time < get-quarantine-time] [
-        draw-buffer-circle
-        draw-contaminated-circle
-      ]
-      test-employees
-      test-grandparents
-      identify-zones
-      check-area-status
-    ]
   ]
   ;if (schools-open? = true)
   [
     if ((all-employees-home? = true or employee-activity = "going-work") and (all-children-home? = true or children-activity = "going-school") and all-grandparents-home? = true) [
+      if (all-employees-idle? = true and all-employees-home? = true and all-children-idle? = true and all-children-home? = true and all-grandparents-home? = true) [
+        let get-lockdown-time lockdown-days * 10000
+        ask employees with [infected-time >= get-lockdown-time] [
+          set can-work? true
+        ]
+        ask children with [infected-time >= get-lockdown-time] [
+          set schooling? true
+        ]
+        ask grandparents with [infected-time >= get-lockdown-time] [
+          set go-out? true
+        ]
+        ask people with [infected-time >= get-lockdown-time] [
+          set color white
+          set diagnosis "not-infected"
+          set tested? false
+          set infected-time 0
+          ask patches with [status != "not-contaminated"] in-radius 8 [
+            set pcolor green - 3
+            set status "not-contaminated"
+          ]
+        ]
+        ask people with [infected-time > 0 and infected-time < get-lockdown-time] [
+          draw-buffer-circle
+          draw-contaminated-circle
+        ]
+        test-employees
+        test-grandparents
+        test-children
+        identify-zones
+        check-area-status
+      ]
       move-to-workplace
       move-out-grandparents
       move-to-school
@@ -100,37 +140,6 @@ to go
       move-from-workplace-to-home
       move-grandparents-home
       move-from-school-to-home
-    ]
-    if (all-employees-idle? = true and all-employees-home? = true and all-children-idle? = true and all-children-home? = true and all-grandparents-home? = true) [
-      let get-quarantine-time quarantine-days * 10000
-      ask people with [infected-time >= get-quarantine-time] [
-        set color white
-        set diagnosis "not-infected"
-        set tested? false
-        set infected-time 0
-        ask patches with [status != "not-contaminated"] in-radius 8 [
-          set pcolor green - 3
-          set status "not-contaminated"
-        ]
-      ]
-      ask employees with [infected-time >= get-quarantine-time] [
-        set can-work? true
-      ]
-      ask children with [infected-time >= get-quarantine-time] [
-        set schooling? true
-      ]
-      ask grandparents with [infected-time >= get-quarantine-time] [
-        set go-out? true
-      ]
-      ask people with [infected-time > 0 and infected-time < get-quarantine-time] [
-        draw-buffer-circle
-        draw-contaminated-circle
-      ]
-      test-employees
-      test-grandparents
-      test-children
-      identify-zones
-      check-area-status
     ]
   ]
   tick
@@ -236,7 +245,9 @@ to initialize-grandparents
       set infected-time 0
       set color white
       set diagnosis "not-infected"
-      set tested? true
+      (ifelse (random 100 < test-rate)
+        [set tested? true]
+        [set tested? false])
       set go-out? true
     ]
   ]
@@ -255,7 +266,9 @@ to initialize-children
       set color white
       set activity "at-home"
       set diagnosis "not-infected"
-      set tested? true
+      (ifelse (random 100 < test-rate)
+        [set tested? true]
+        [set tested? false])
       set schooling? true
     ]
   ]
@@ -565,13 +578,13 @@ to check-area-status
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-465
-11
-1205
-752
+460
+10
+1082
+633
 -1
 -1
-12.0
+10.07
 1
 10
 1
@@ -628,13 +641,13 @@ NIL
 SLIDER
 238
 142
-437
+436
 175
 number-of-workplaces
 number-of-workplaces
 1
 100
-10.0
+20.0
 1
 1
 NIL
@@ -649,7 +662,7 @@ number-of-houses
 number-of-houses
 1
 500
-20.0
+25.0
 1
 1
 NIL
@@ -664,18 +677,18 @@ employees-per-house
 employees-per-house
 1
 4
-2.0
+1.0
 1
 1
 NIL
 HORIZONTAL
 
 PLOT
-26
-493
-447
-677
-Diagnosis 
+15
+364
+438
+569
+Diagnosis
 time
 count
 0.0
@@ -690,10 +703,10 @@ PENS
 "not-infected" 1.0 0 -10899396 true "" "let people (turtle-set employees grandparents children)\nplot (count people with [color = white])"
 
 MONITOR
-117
-703
-213
-748
+110
+583
+206
+628
 infected count
 count turtles with [shape = \"person\" and color = red]
 0
@@ -701,10 +714,10 @@ count turtles with [shape = \"person\" and color = red]
 11
 
 MONITOR
-229
-704
-347
-749
+222
+584
+340
+629
 not-infected count
 count turtles with [shape = \"person\" and color = white]
 0
@@ -740,23 +753,23 @@ HORIZONTAL
 SLIDER
 243
 279
-443
+436
 312
 number-of-supermarkets
 number-of-supermarkets
 1
 20
-10.0
+15.0
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-363
-705
-447
-750
+356
+585
+440
+630
 infected %
 count turtles with [shape = \"person\" and color = red] / (count turtles with [shape = \"person\"]) * 100
 2
@@ -766,13 +779,13 @@ count turtles with [shape = \"person\" and color = red] / (count turtles with [s
 SLIDER
 238
 189
-436
+435
 222
 private-transport
 private-transport
 0
 100
-30.0
+0.0
 1
 1
 %
@@ -781,13 +794,13 @@ HORIZONTAL
 SLIDER
 242
 323
-441
+437
 356
 go-shopping
 go-shopping
 0
 100
-60.0
+10.0
 1
 1
 %
@@ -802,17 +815,17 @@ test-rate
 test-rate
 0
 100
-30.0
+20.0
 1
 1
 %
 HORIZONTAL
 
 MONITOR
-26
-702
-100
-747
+19
+582
+93
+627
 total
 count turtles with [shape = \"person\"]
 17
@@ -863,13 +876,13 @@ open-schools?
 SLIDER
 237
 97
-438
+437
 130
-quarantine-days
-quarantine-days
+lockdown-days
+lockdown-days
 1
 20
-2.0
+1.0
 1
 1
 NIL
@@ -884,7 +897,7 @@ grandparents-per-house
 grandparents-per-house
 0
 4
-1.0
+0.0
 1
 1
 NIL
