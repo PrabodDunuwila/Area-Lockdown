@@ -11,8 +11,8 @@ breed [grandparents grandparent]
 houses-own[family-number]
 workplaces-own[workplace-number building-status]
 employees-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time activity]
-children-own[family-number school-number diagnosis where-now? idle? tested? infected-time schooling? activity]
-grandparents-own[family-number diagnosis where-now? tested? infected-time go-out?]
+children-own[family-number school-number diagnosis where-now? idle? tested? infected-time schooling? activity has-car?]
+grandparents-own[family-number diagnosis where-now? tested? infected-time go-out? has-car?]
 supermarkets-own[supermarket-number building-status]
 schools-own[school-number building-status]
 patches-own[status]
@@ -44,18 +44,22 @@ to go
 
   ask people with [diagnosis = "infected" and tested? = true] [
     set infected-time infected-time + 1
+    ;Has to make the neighbour agents who are infected increment their infected-time
+    ;since we can think that relatives are also tested
+    ;may be able to apply this at testing process and set testing? = true for neighbours
   ]
+  ;if schools closed
   ifelse (open-schools? = false) [
     (ifelse (all-employees-home? = true and all-grandparents-home? = true) [
       if (all-employees-idle? = true and all-employees-home? = true and all-grandparents-home? = true) [
-        let get-lockdown-time lockdown-days * 10000
+        let get-lockdown-time lockdown-days * 2000
         ask employees with [infected-time >= get-lockdown-time] [
           set color white
           set diagnosis "not-infected"
           set tested? false
           set infected-time 0
           ask patches with [status != "not-contaminated"] in-radius 8 [
-            set pcolor green - 3
+            set pcolor green - 4
             set status "not-contaminated"
           ]
           set can-work? true
@@ -66,7 +70,7 @@ to go
           set tested? false
           set infected-time 0
           ask patches with [status != "not-contaminated"] in-radius 8 [
-            set pcolor green - 3
+            set pcolor green - 4
             set status "not-contaminated"
           ]
           set go-out? true
@@ -95,31 +99,53 @@ to go
         move-grandparents-home
     ])
   ]
-  ;if (schools-open? = true)
+  ;if schools open
   [
     if ((all-employees-home? = true or employee-activity = "going-work") and (all-children-home? = true or children-activity = "going-school") and all-grandparents-home? = true) [
       if (all-employees-idle? = true and all-employees-home? = true and all-children-idle? = true and all-children-home? = true and all-grandparents-home? = true) [
-        let get-lockdown-time lockdown-days * 10000
+        let get-lockdown-time lockdown-days * 2000
         ask employees with [infected-time >= get-lockdown-time] [
           set can-work? true
-        ]
-        ask children with [infected-time >= get-lockdown-time] [
-          set schooling? true
-        ]
-        ask grandparents with [infected-time >= get-lockdown-time] [
-          set go-out? true
-        ]
-        ask people with [infected-time >= get-lockdown-time] [
           set color white
           set diagnosis "not-infected"
           set tested? false
           set infected-time 0
           ask patches with [status != "not-contaminated"] in-radius 8 [
-            set pcolor green - 3
+            set pcolor green - 4
             set status "not-contaminated"
           ]
         ]
-        ask people with [infected-time > 0 and infected-time < get-lockdown-time] [
+        ask children with [infected-time >= get-lockdown-time] [
+          set schooling? true
+          set color white
+          set diagnosis "not-infected"
+          set tested? false
+          set infected-time 0
+          ask patches with [status != "not-contaminated"] in-radius 8 [
+            set pcolor green - 4
+            set status "not-contaminated"
+          ]
+        ]
+        ask grandparents with [infected-time >= get-lockdown-time] [
+          set go-out? true
+          set color white
+          set diagnosis "not-infected"
+          set tested? false
+          set infected-time 0
+          ask patches with [status != "not-contaminated"] in-radius 8 [
+            set pcolor green - 4
+            set status "not-contaminated"
+          ]
+        ]
+        ask employees with [infected-time > 0 and infected-time < get-lockdown-time] [
+          draw-buffer-circle
+          draw-contaminated-circle
+        ]
+        ask grandparents with [infected-time > 0 and infected-time < get-lockdown-time] [
+          draw-buffer-circle
+          draw-contaminated-circle
+        ]
+        ask children with [infected-time > 0 and infected-time < get-lockdown-time] [
           draw-buffer-circle
           draw-contaminated-circle
         ]
@@ -149,7 +175,7 @@ to build-houses
   set-default-shape houses "house"
   set counter 1
   create-houses number-of-houses[
-    set size 1
+    set size 1.5
     setxy random-xcor random-ycor
     set family-number counter
     set counter counter + 1
@@ -205,6 +231,7 @@ to initialize-employees
   ask houses [
     hatch-employees employees-per-house [
       set shape "person"
+      set size 1
       set family-number [family-number] of myself
       set workplace-number random number-of-workplaces + 1
       set where-now? "home"
@@ -240,6 +267,8 @@ to initialize-grandparents
   ask houses [
     hatch-grandparents grandparents-per-house [
       set shape "person"
+      set size 1
+      set has-car? false
       set family-number [family-number] of myself
       set where-now? "home"
       set infected-time 0
@@ -258,6 +287,7 @@ to initialize-children
   ask houses [
     hatch-children children-per-house [
       set shape "person"
+      set size 1
       set family-number [family-number] of myself
       set school-number random number-of-schools + 1
       set where-now? "home"
@@ -266,6 +296,9 @@ to initialize-children
       set color white
       set activity "at-home"
       set diagnosis "not-infected"
+      (ifelse (random 100 < private-transport)
+        [set has-car? true]
+        [set has-car? false])
       (ifelse (random 100 < test-rate)
         [set tested? true]
         [set tested? false])
@@ -333,8 +366,6 @@ to move-to-workplace
       face employee-workplace
       (ifelse
         any? workplaces with [workplace-number = [workplace-number] of myself] in-radius 1 [
-          if has-car? = true
-            [set shape "person"]
           set where-now? "workplace"
           set activity "at-work"
           stop
@@ -342,11 +373,7 @@ to move-to-workplace
         [
           set idle? false
           set activity "going-work"
-          (ifelse has-car? = true
-            [set shape "car"
-              set size 1
-              forward 0.1]
-            [forward 0.01])
+          forward 0.05
       ])
       spread-disease
     ]
@@ -387,7 +414,7 @@ to move-to-school
         [
           set activity "going-school"
           set idle? false
-          forward 0.01
+          forward 0.05
       ])
       spread-disease
     ]
@@ -408,8 +435,6 @@ to move-from-workplace-to-home
       let family-place one-of houses with [family-number = [family-number] of myself]
       face family-place
       (ifelse any? houses with [family-number = [family-number] of myself] in-radius 1 [
-        if has-car? = true
-          [set shape "person"]
         set where-now? "home"
         set idle? true
         set activity "at-home"
@@ -417,11 +442,7 @@ to move-from-workplace-to-home
         ]
         [
           set activity "going-home"
-          (ifelse has-car? = true
-            [set shape "car"
-              set size 1
-              forward 0.06]
-            [forward 0.01])
+          forward 0.05
       ])
       spread-disease
     ]
@@ -442,17 +463,11 @@ to move-to-market
   (ifelse [building-status] of market-place != "contaminated" [
     face market-place
     (ifelse any? supermarkets with [supermarket-number = [supermarket-number] of myself] in-radius 1 [
-      if has-car? = true
-        [set shape "person"]
       set where-now? "supermarket"
       stop
       ]
       [
-        (ifelse has-car? = true
-          [set shape "car"
-            set size 1
-            forward 0.1]
-          [forward 0.01])
+        forward 0.05
     ])
     spread-disease
     ]
@@ -490,7 +505,7 @@ to move-from-school-to-home
         ]
         [
           set activity "going-home"
-          forward 0.01
+          forward 0.05
       ])
       spread-disease
     ]
@@ -509,16 +524,22 @@ end
 to spread-disease
   let people (turtle-set employees grandparents children)
   if any? people with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
+    ;Different probabilities of spread when using private and public trnsportation
     if random 100 < spread-rate * 100 and shape = "person" [
-      set color red
-      set diagnosis "infected"
+      (ifelse has-car? = false [
+        set color red
+        set diagnosis "infected"
+      ][
+        set color red
+        set diagnosis "infected"
+      ])
     ]
   ]
 end
 
 to mark-sterile-zone
   ask patches [
-    set pcolor green - 3
+    set pcolor green - 4
     set status "not-contaminated"
   ]
 end
@@ -578,13 +599,13 @@ to check-area-status
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-460
+450
 10
-1082
-633
+1036
+597
 -1
 -1
-10.07
+9.48
 1
 10
 1
@@ -605,10 +626,10 @@ ticks
 30.0
 
 BUTTON
-20
-11
-116
-67
+27
+14
+120
+59
 NIL
 setup
 NIL
@@ -622,10 +643,10 @@ NIL
 1
 
 BUTTON
-19
-80
+24
+74
+120
 117
-132
 NIL
 go
 T
@@ -640,9 +661,9 @@ NIL
 
 SLIDER
 238
-142
+133
 436
-175
+166
 number-of-workplaces
 number-of-workplaces
 1
@@ -654,40 +675,40 @@ NIL
 HORIZONTAL
 
 SLIDER
-17
-143
-216
-176
+20
+128
+219
+161
 number-of-houses
 number-of-houses
 1
 500
-25.0
+20.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-15
-190
-216
-223
+19
+170
+220
+203
 employees-per-house
 employees-per-house
 1
 4
-1.0
+2.0
 1
 1
 NIL
 HORIZONTAL
 
 PLOT
-15
-364
-438
-569
+18
+331
+441
+536
 Diagnosis
 time
 count
@@ -703,10 +724,10 @@ PENS
 "not-infected" 1.0 0 -10899396 true "" "let people (turtle-set employees grandparents children)\nplot (count people with [color = white])"
 
 MONITOR
-110
-583
-206
-628
+111
+549
+207
+594
 infected count
 count turtles with [shape = \"person\" and color = red]
 0
@@ -714,10 +735,10 @@ count turtles with [shape = \"person\" and color = red]
 11
 
 MONITOR
-222
-584
-340
-629
+223
+550
+341
+595
 not-infected count
 count turtles with [shape = \"person\" and color = white]
 0
@@ -728,9 +749,9 @@ INPUTBOX
 133
 10
 212
-132
+125
 initial-infected
-10.0
+5.0
 1
 0
 Number
@@ -744,17 +765,17 @@ spread-rate
 spread-rate
 0
 1
-0.5
+0.3
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-243
-279
-436
-312
+241
+252
+434
+285
 number-of-supermarkets
 number-of-supermarkets
 1
@@ -766,10 +787,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-356
-585
-440
-630
+357
+551
+441
+596
 infected %
 count turtles with [shape = \"person\" and color = red] / (count turtles with [shape = \"person\"]) * 100
 2
@@ -777,27 +798,42 @@ count turtles with [shape = \"person\" and color = red] / (count turtles with [s
 11
 
 SLIDER
-238
-189
-435
-222
+240
+173
+437
+206
 private-transport
 private-transport
 0
 100
-0.0
+40.0
 1
 1
 %
 HORIZONTAL
 
 SLIDER
-242
-323
-437
-356
+240
+291
+435
+324
 go-shopping
 go-shopping
+0
+100
+40.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+237
+50
+438
+83
+test-rate
+test-rate
 0
 100
 10.0
@@ -806,26 +842,11 @@ go-shopping
 %
 HORIZONTAL
 
-SLIDER
-236
-53
-437
-86
-test-rate
-test-rate
-0
-100
-20.0
-1
-1
-%
-HORIZONTAL
-
 MONITOR
-19
-582
-93
-627
+20
+548
+94
+593
 total
 count turtles with [shape = \"person\"]
 17
@@ -833,10 +854,10 @@ count turtles with [shape = \"person\"]
 11
 
 SLIDER
-240
-235
-435
-268
+239
+212
+434
+245
 number-of-schools
 number-of-schools
 1
@@ -848,10 +869,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-17
-235
-219
-268
+18
+212
+220
+245
 children-per-house
 children-per-house
 0
@@ -863,45 +884,65 @@ NIL
 HORIZONTAL
 
 SWITCH
-17
-279
-221
-312
+19
+251
+223
+284
 open-schools?
 open-schools?
-0
+1
 1
 -1000
 
 SLIDER
 237
-97
+91
 437
-130
+124
 lockdown-days
 lockdown-days
 1
 20
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+19
+294
+225
+327
+grandparents-per-house
+grandparents-per-house
+0
+4
 1.0
 1
 1
 NIL
 HORIZONTAL
 
-SLIDER
-17
-322
-223
-355
-grandparents-per-house
-grandparents-per-house
-0
-4
+TEXTBOX
+1061
+11
+1211
+317
+--Color mapping--\n\n--Buildings\n    Houses: white\n    Workplaces: yellow\n    Markets: blue\n    Schools: orange\n\n--People\n    Susceptible: white\n    Infected: red\n    Exposed: red\n    Recovered: white\n\n--Zones\n    Contaminated: red\n    Buffer: yellow\n    Sterile: green
+14
 0.0
 1
-1
+
+TEXTBOX
+1087
+389
+1237
+407
 NIL
-HORIZONTAL
+11
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
