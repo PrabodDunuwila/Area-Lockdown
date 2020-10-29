@@ -44,11 +44,6 @@ to go
 
   ask people with [diagnosis = "infected" and tested? = true] [
     set infected-time infected-time + 1
-    ;Has to make the neighbour agents who are infected increment their infected-time
-    ;since we can think that relatives are also tested
-    ;may be able to apply this at testing process and set testing? = true for neighbours
-    ;or else may be when contaminated area is removed, at that point we may consider all people
-    ;in that area are recovered
   ]
   ;if schools closed
   ifelse (open-schools? = false) [
@@ -235,7 +230,7 @@ to initialize-adults
       set supermarket-number random number-of-supermarkets + 1
       set idle? true
       set activity "at-home"
-      (ifelse (random 100 < private-transport)
+      (ifelse (random 100 < use-of-private-transport)
         [set has-car? true]
         [set has-car? false])
       (ifelse (counter > 0)
@@ -261,7 +256,7 @@ end
 to initialize-grandparents
   set all-grandparents-home? true
   ask houses [
-    hatch-grandparents grandparents-per-house [
+    hatch-grandparents older-people-per-house [
       set shape "person"
       set size 1
       set has-car? false
@@ -292,7 +287,7 @@ to initialize-children
       set color white
       set activity "at-home"
       set diagnosis "not-infected"
-      (ifelse (random 100 < private-transport)
+      (ifelse (random 100 < use-of-private-transport)
         [set has-car? true]
         [set has-car? false])
       (ifelse (random 100 < test-rate)
@@ -522,11 +517,11 @@ to spread-disease
   if any? people with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
     ;Different probabilities of spread when using private and public trnsportation
     (ifelse
-      has-car? = false and random 100 < public-transport-spread-pr * 100 [
+      has-car? = false and random 100 < public-transport-spread-rate * 100 [
         set color red
         set diagnosis "infected"
       ]
-      has-car? = true and random 100 < pvt-transport-spread-pr * 100 [
+      has-car? = true and random 100 < private-transport-spread-rate * 100 [
         set color red
         set diagnosis "infected"
     ])
@@ -558,6 +553,13 @@ to draw-contaminated-circle
   ask patches in-radius 4 [
     set pcolor red - 3
     set status "contaminated"
+  ]
+  ; when an infected person is identified, his/her all relatives are tested.
+  let people (turtle-set adults grandparents children)
+  ask people [
+    if ([pcolor] of one-of patches in-radius 1 = red - 3 ) [
+      set tested? true
+    ]
   ]
 end
 
@@ -595,13 +597,13 @@ to check-area-status
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-450
-10
-1036
-597
+454
+12
+1058
+617
 -1
 -1
-9.48
+9.7705
 1
 10
 1
@@ -658,13 +660,13 @@ NIL
 SLIDER
 237
 185
-435
+439
 218
 number-of-workplaces
 number-of-workplaces
 1
 100
-20.0
+30.0
 1
 1
 NIL
@@ -679,7 +681,7 @@ number-of-houses
 number-of-houses
 1
 500
-20.0
+50.0
 1
 1
 NIL
@@ -701,10 +703,10 @@ NIL
 HORIZONTAL
 
 PLOT
-18
-331
-441
-536
+25
+357
+436
+508
 Diagnosis
 time
 count
@@ -720,10 +722,10 @@ PENS
 "not-infected" 1.0 0 -10899396 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = white])"
 
 MONITOR
-111
-549
-207
-594
+116
+515
+212
+560
 infected count
 count turtles with [shape = \"person\" and color = red]
 0
@@ -731,10 +733,10 @@ count turtles with [shape = \"person\" and color = red]
 11
 
 MONITOR
-223
-550
-341
-595
+228
+516
+346
+561
 not-infected count
 count turtles with [shape = \"person\" and color = white]
 0
@@ -753,25 +755,25 @@ initial-infected
 Number
 
 SLIDER
-239
-229
-432
-262
+238
+230
+441
+263
 number-of-supermarkets
 number-of-supermarkets
 1
-20
-15.0
+100
+25.0
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-357
-551
-441
-596
+361
+517
+445
+562
 infected %
 count turtles with [shape = \"person\" and color = red] / (count turtles with [shape = \"person\"]) * 100
 2
@@ -781,10 +783,10 @@ count turtles with [shape = \"person\" and color = red] / (count turtles with [s
 SLIDER
 239
 142
-436
+439
 175
-private-transport
-private-transport
+use-of-private-transport
+use-of-private-transport
 0
 100
 40.0
@@ -796,7 +798,7 @@ HORIZONTAL
 SLIDER
 237
 273
-432
+437
 306
 go-shopping
 go-shopping
@@ -817,17 +819,17 @@ test-rate
 test-rate
 0
 100
-26.0
+40.0
 1
 1
 %
 HORIZONTAL
 
 MONITOR
-20
-548
-94
-593
+24
+514
+98
+559
 total
 count turtles with [shape = \"person\"]
 17
@@ -836,14 +838,14 @@ count turtles with [shape = \"person\"]
 
 SLIDER
 239
-99
-434
-132
+101
+438
+134
 number-of-schools
 number-of-schools
 1
 5
-1.0
+2.0
 1
 1
 NIL
@@ -871,20 +873,20 @@ SWITCH
 135
 open-schools?
 open-schools?
-0
+1
 1
 -1000
 
 SLIDER
 237
 59
-432
+438
 92
 lockdown-days
 lockdown-days
 1
 20
-2.0
+1.0
 1
 1
 NIL
@@ -895,8 +897,8 @@ SLIDER
 272
 229
 305
-grandparents-per-house
-grandparents-per-house
+older-people-per-house
+older-people-per-house
 0
 4
 1.0
@@ -906,32 +908,22 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-1062
-23
-1212
+64
 329
---Color mapping--\n\n--Buildings\n    Houses: white\n    Workplaces: yellow\n    Markets: blue\n    Schools: orange\n\n--People\n    Susceptible: white\n    Infected: red\n    Exposed: red\n    Recovered: white\n\n--Zones\n    Contaminated: red\n    Buffer: yellow\n    Sterile: green
-14
-0.0
-1
-
-TEXTBOX
-1090
-530
-1240
-548
+214
+347
 NIL
 11
 0.0
 1
 
 SLIDER
-1054
-513
-1252
-546
-pvt-transport-spread-pr
-pvt-transport-spread-pr
+28
+312
+229
+345
+private-transport-spread-rate
+private-transport-spread-rate
 0
 1
 0.3
@@ -941,15 +933,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-1055
-557
-1251
-590
-public-transport-spread-pr
-public-transport-spread-pr
+237
+313
+437
+346
+public-transport-spread-rate
+public-transport-spread-rate
 0
 1
-0.05
+0.06
 0.01
 1
 NIL
