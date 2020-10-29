@@ -50,7 +50,8 @@ to go
     (ifelse (all-adults-home? = true and all-grandparents-home? = true) [
       if (all-adults-idle? = true and all-adults-home? = true and all-grandparents-home? = true) [
         let get-lockdown-time lockdown-days * 2000
-        ask adults with [infected-time >= get-lockdown-time] [
+        let adults-grandparents (turtle-set adults grandparents)
+        ask adults-grandparents with [infected-time >= get-lockdown-time] [
           set color white
           set diagnosis "not-infected"
           set tested? false
@@ -59,17 +60,11 @@ to go
             set pcolor green - 4
             set status "not-contaminated"
           ]
+        ]
+        ask adults with [infected-time >= get-lockdown-time] [
           set can-work? true
         ]
         ask grandparents with [infected-time >= get-lockdown-time] [
-          set color white
-          set diagnosis "not-infected"
-          set tested? false
-          set infected-time 0
-          ask patches with [status != "not-contaminated"] in-radius 8 [
-            set pcolor green - 4
-            set status "not-contaminated"
-          ]
           set go-out? true
         ]
         ask adults with [infected-time > 0 and infected-time < get-lockdown-time] [
@@ -101,8 +96,7 @@ to go
     if ((all-adults-home? = true or adult-activity = "going-work") and (all-children-home? = true or children-activity = "going-school") and all-grandparents-home? = true) [
       if (all-adults-idle? = true and all-adults-home? = true and all-children-idle? = true and all-children-home? = true and all-grandparents-home? = true) [
         let get-lockdown-time lockdown-days * 2000
-        ask adults with [infected-time >= get-lockdown-time] [
-          set can-work? true
+        ask people with [infected-time >= get-lockdown-time] [
           set color white
           set diagnosis "not-infected"
           set tested? false
@@ -111,38 +105,17 @@ to go
             set pcolor green - 4
             set status "not-contaminated"
           ]
+        ]
+        ask adults with [infected-time >= get-lockdown-time] [
+          set can-work? true
         ]
         ask children with [infected-time >= get-lockdown-time] [
           set schooling? true
-          set color white
-          set diagnosis "not-infected"
-          set tested? false
-          set infected-time 0
-          ask patches with [status != "not-contaminated"] in-radius 8 [
-            set pcolor green - 4
-            set status "not-contaminated"
-          ]
         ]
         ask grandparents with [infected-time >= get-lockdown-time] [
           set go-out? true
-          set color white
-          set diagnosis "not-infected"
-          set tested? false
-          set infected-time 0
-          ask patches with [status != "not-contaminated"] in-radius 8 [
-            set pcolor green - 4
-            set status "not-contaminated"
-          ]
         ]
-        ask adults with [infected-time > 0 and infected-time < get-lockdown-time] [
-          draw-buffer-circle
-          draw-contaminated-circle
-        ]
-        ask grandparents with [infected-time > 0 and infected-time < get-lockdown-time] [
-          draw-buffer-circle
-          draw-contaminated-circle
-        ]
-        ask children with [infected-time > 0 and infected-time < get-lockdown-time] [
+        ask people with [infected-time > 0 and infected-time < get-lockdown-time] [
           draw-buffer-circle
           draw-contaminated-circle
         ]
@@ -554,19 +527,18 @@ to draw-contaminated-circle
     set pcolor red - 3
     set status "contaminated"
   ]
-  ; when an infected person is identified, his/her all relatives are tested.
-  let people (turtle-set adults grandparents children)
-  ask people [
-    if ([pcolor] of one-of patches in-radius 1 = red - 3 ) [
-      set tested? true
-    ]
-  ]
 end
 
 to mark-contaminated-zone
   let people (turtle-set adults grandparents children)
   ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-contaminated-circle
+  ]
+  ; when an infected person is identified, his/her all relatives are tested.
+  ask people [
+    if ([pcolor] of one-of patches in-radius 1 = red - 3 ) [
+      set tested? true
+    ]
   ]
 end
 
@@ -666,7 +638,7 @@ number-of-workplaces
 number-of-workplaces
 1
 100
-30.0
+10.0
 1
 1
 NIL
@@ -681,7 +653,7 @@ number-of-houses
 number-of-houses
 1
 500
-50.0
+20.0
 1
 1
 NIL
@@ -763,7 +735,7 @@ number-of-supermarkets
 number-of-supermarkets
 1
 100
-25.0
+10.0
 1
 1
 NIL
@@ -819,7 +791,7 @@ test-rate
 test-rate
 0
 100
-40.0
+15.0
 1
 1
 %
