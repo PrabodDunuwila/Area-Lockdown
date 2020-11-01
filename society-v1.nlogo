@@ -1,4 +1,4 @@
-globals[counter all-adults-home? all-adults-idle? all-grandparents-home? all-children-home? all-children-idle? adult-activity children-activity]
+globals[counter all-adults-home? all-adults-idle? all-grandparents-home? all-children-home? all-children-idle? adult-activity children-activity population dead-count]
 
 breed [children child]
 breed [adults adult]
@@ -27,10 +27,13 @@ to setup
   ifelse (open-schools? = true)[
     build-schools
     initialize-children
+    set population (children-per-house + adults-per-house + older-people-per-house) * number-of-houses
   ][
     set option-1 false
     set option-2 false
+    set population (adults-per-house + older-people-per-house) * number-of-houses
   ]
+  set dead-count 0
   mark-sterile-zone
   identify-zones
   check-area-status
@@ -67,14 +70,22 @@ to go
   if (open-schools? = false  and option-1 = false) [
     (ifelse (all-adults-home? = true and all-grandparents-home? = true) [
       if (all-adults-idle? = true and all-adults-home? = true and all-grandparents-home? = true) [
+        ; people die based on mortality rate
+        ask people with [color = red and tested? = false] [
+          if (random 100 < mortality-rate) [
+            set dead-count dead-count + 1
+            die
+          ]
+        ]
+        ;
         let get-lockdown-time lockdown-days * 150
         let adults-grandparents (turtle-set adults grandparents)
         ask adults-grandparents with [infected-time >= get-lockdown-time] [
-          set color white
+          set color yellow
           set diagnosis "not-infected"
           set tested? false
           set infected-time 0
-          ask patches with [status != "not-contaminated"] in-radius 8 [
+          ask patches with [status != "not-contaminated"] in-radius (lockdown-radius + 2) [
             set pcolor green - 4
             set status "not-contaminated"
           ]
@@ -113,13 +124,21 @@ to go
   if (open-schools? = true or (open-schools? = false and option-1 = true)) [
     if ((all-adults-home? = true or adult-activity = "going-work") and (all-children-home? = true or children-activity = "going-school") and all-grandparents-home? = true) [
       if (all-adults-idle? = true and all-adults-home? = true and all-children-idle? = true and all-children-home? = true and all-grandparents-home? = true) [
+        ; people die based on mortality rate
+        ask people with [color = red and tested? = false] [
+          if (random 100 < mortality-rate) [
+            set dead-count dead-count + 1
+            die
+          ]
+        ]
+        ;
         let get-lockdown-time lockdown-days * 150
         ask people with [infected-time >= get-lockdown-time] [
-          set color white
+          set color yellow
           set diagnosis "not-infected"
           set tested? false
           set infected-time 0
-          ask patches with [status != "not-contaminated"] in-radius 8 [
+          ask patches with [status != "not-contaminated"] in-radius (lockdown-radius + 2) [
             set pcolor green - 4
             set status "not-contaminated"
           ]
@@ -512,11 +531,11 @@ to spread-disease
   if any? people with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
     ;Different probabilities of spread when using private and public trnsportation
     (ifelse
-      has-car? = false and random 100 < public-transport-spread-rate * 100 [
+      has-car? = false and random 100 < public-transport-spread-rate * 100 and color = white [
         set color red
         set diagnosis "infected"
       ]
-      has-car? = true and random 100 < private-transport-spread-rate * 100 [
+      has-car? = true and random 100 < private-transport-spread-rate * 100 and color = white [
         set color red
         set diagnosis "infected"
     ])
@@ -531,7 +550,7 @@ to mark-sterile-zone
 end
 
 to draw-buffer-circle
-  ask patches with [status != "contaminated"] in-radius 8 [
+  ask patches with [status != "contaminated"] in-radius (lockdown-radius + 2) [
     set pcolor yellow - 3
     set status "buffer"
   ]
@@ -545,7 +564,7 @@ to mark-buffer-zone
 end
 
 to draw-contaminated-circle
-  ask patches in-radius 4 [
+  ask patches in-radius lockdown-radius [
     set pcolor red - 3
     set status "contaminated"
   ]
@@ -591,13 +610,13 @@ to check-area-status
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-221
-10
-773
-563
+224
+14
+681
+472
 -1
 -1
-8.92
+7.361
 1
 10
 1
@@ -635,10 +654,10 @@ NIL
 1
 
 BUTTON
-15
-84
-82
-138
+16
+73
+83
+127
 NIL
 go
 T
@@ -652,10 +671,10 @@ NIL
 1
 
 SLIDER
-8
-390
-210
-423
+13
+322
+215
+355
 number-of-workplaces
 number-of-workplaces
 1
@@ -667,10 +686,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-14
-150
-213
-183
+13
+132
+215
+165
 number-of-houses
 number-of-houses
 1
@@ -682,10 +701,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-9
-198
-210
-231
+12
+169
+213
+202
 adults-per-house
 adults-per-house
 1
@@ -697,13 +716,13 @@ NIL
 HORIZONTAL
 
 PLOT
-790
-279
-1208
-508
-Diagnosis
-time
-count
+693
+255
+1058
+418
+SIR model
+Time
+Number of people
 0.0
 10.0
 0.0
@@ -712,28 +731,29 @@ true
 true
 "" ""
 PENS
-"susceptible" 1.0 0 -13840069 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = white])"
-"infected" 1.0 0 -2674135 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = red])"
-"recovered" 1.0 0 -7500403 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = grey])"
+"Susceptible" 1.0 0 -13840069 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = white])"
+"Infected" 1.0 0 -2674135 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = red])"
+"Recovered" 1.0 0 -14070903 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = yellow])"
+"Dead" 1.0 0 -7500403 true "" "plot (dead-count)"
 
 MONITOR
-879
-518
-975
-563
-infected count
-count turtles with [shape = \"person\" and color = red]
+921
+425
+995
+470
+recovered %
+count turtles with [shape = \"person\" and color = yellow] / (population) * 100
 0
 1
 11
 
 MONITOR
-991
-519
-1109
-564
-not-infected count
-count turtles with [shape = \"person\" and color = white]
+764
+424
+844
+469
+susceptible %
+count turtles with [shape = \"person\" and color = white] / (population) * 100
 0
 1
 11
@@ -744,16 +764,16 @@ INPUTBOX
 206
 89
 initial-infected
-5.0
+10.0
 1
 0
 Number
 
 SLIDER
-8
-436
-211
-469
+12
+361
+215
+394
 number-of-supermarkets
 number-of-supermarkets
 1
@@ -765,36 +785,36 @@ NIL
 HORIZONTAL
 
 MONITOR
-1124
-520
-1208
-565
+851
+425
+917
+470
 infected %
-count turtles with [shape = \"person\" and color = red] / (count turtles with [shape = \"person\"]) * 100
-2
+count turtles with [shape = \"person\" and color = red] / (population) * 100
+0
 1
 11
 
 SLIDER
-784
-100
-984
-133
+699
+98
+882
+131
 use-of-private-transport
 use-of-private-transport
 0
 100
-80.0
+60.0
 1
 1
 %
 HORIZONTAL
 
 SLIDER
-786
-143
-986
-176
+889
+12
+1054
+45
 go-shopping
 go-shopping
 0
@@ -806,36 +826,36 @@ go-shopping
 HORIZONTAL
 
 SLIDER
-783
-16
-982
-49
+702
+11
+881
+44
 test-rate
 test-rate
 0
 100
-15.0
+10.0
 1
 1
 %
 HORIZONTAL
 
 MONITOR
-787
-517
-861
-562
+694
+425
+757
+470
 total
-count turtles with [shape = \"person\"]
+population
 17
 1
 11
 
 SLIDER
-8
-344
-207
-377
+13
+283
+212
+316
 number-of-schools
 number-of-schools
 1
@@ -847,10 +867,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-11
-249
-212
-282
+12
+207
+213
+240
 children-per-house
 children-per-house
 0
@@ -862,10 +882,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-91
-104
-209
-137
+702
+139
+883
+172
 open-schools?
 open-schools?
 0
@@ -873,10 +893,10 @@ open-schools?
 -1000
 
 SLIDER
-782
-58
-983
-91
+700
+54
+882
+87
 lockdown-days
 lockdown-days
 1
@@ -888,10 +908,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-9
-297
-212
-330
+14
+244
+217
+277
 older-people-per-house
 older-people-per-house
 0
@@ -903,20 +923,20 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-44
-544
-194
-562
+47
+452
+197
+470
 NIL
 11
 0.0
 1
 
 SLIDER
-8
-527
-209
-560
+12
+437
+213
+470
 private-transport-spread-rate
 private-transport-spread-rate
 0
@@ -928,27 +948,64 @@ NIL
 HORIZONTAL
 
 SLIDER
-9
-481
-209
-514
+12
+400
+212
+433
 public-transport-spread-rate
 public-transport-spread-rate
 0
 1
-0.06
-0.01
+0.5
+0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-885
-186
-1141
-219
+801
+180
+1057
+213
 schools-close-when-infected-%-at
 schools-close-when-infected-%-at
+0
+100
+20.0
+1
+1
+%
+HORIZONTAL
+
+SWITCH
+701
+180
+791
+213
+option-1
+option-1
+1
+1
+-1000
+
+SWITCH
+702
+216
+792
+249
+option-2
+option-2
+1
+1
+-1000
+
+SLIDER
+801
+216
+1057
+249
+schools-open-when-infected-%-at
+schools-open-when-infected-%-at
 0
 100
 10.0
@@ -957,41 +1014,45 @@ schools-close-when-infected-%-at
 %
 HORIZONTAL
 
-SWITCH
-789
-187
-879
-220
-option-1
-option-1
-0
+MONITOR
+999
+423
+1056
+468
+dead %
+dead-count / population * 100
 1
--1000
-
-SWITCH
-790
-233
-880
-266
-option-2
-option-2
-0
 1
--1000
+11
 
 SLIDER
-885
-232
-1141
-265
-schools-open-when-infected-%-at
-schools-open-when-infected-%-at
+93
+94
+210
+127
+mortality-rate
+mortality-rate
 0
 100
-7.0
+30.0
 1
 1
 %
+HORIZONTAL
+
+SLIDER
+889
+55
+1055
+88
+lockdown-radius
+lockdown-radius
+0
+10
+3.0
+1
+1
+/ 10
 HORIZONTAL
 
 @#$#@#$#@
