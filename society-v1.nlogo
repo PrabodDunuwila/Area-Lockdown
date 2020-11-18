@@ -1,8 +1,8 @@
-globals[counter all-adults-home? all-adults-idle? all-grandparents-home? all-children-home? all-children-idle? adult-activity children-activity population dead-count]
+globals[counter all-adults-home? all-adults-idle? all-old-generation-home? all-children-home? all-children-idle? adult-activity children-activity population dead-count]
 
 breed [children child]
 breed [adults adult]
-breed [grandparents grandparent]
+breed [old-generation old-person]
 breed [houses house]
 breed [workplaces workplace]
 breed [supermarkets supermarket]
@@ -10,7 +10,7 @@ breed [schools school]
 
 adults-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time activity]
 children-own[family-number school-number diagnosis where-now? idle? tested? infected-time schooling? activity has-car?]
-grandparents-own[family-number diagnosis where-now? tested? infected-time go-out? has-car?]
+old-generation-own[family-number diagnosis where-now? tested? infected-time go-out? has-car?]
 houses-own[family-number]
 workplaces-own[workplace-number building-status]
 supermarkets-own[supermarket-number building-status]
@@ -23,7 +23,7 @@ to setup
   build-supermarkets
   build-workplaces
   initialize-adults
-  initialize-grandparents
+  initialize-old-generation
   ifelse (open-schools? = true)[
     build-schools
     initialize-children
@@ -42,7 +42,7 @@ end
 
 to go
 
-  let people (turtle-set adults grandparents children)
+  let people (turtle-set adults old-generation children)
 
   if all? people [diagnosis = "not-infected"] [
     stop
@@ -68,8 +68,8 @@ to go
 
   ;if schools closed at the begining
   if (open-schools? = false  and option-1 = false) [
-    (ifelse (all-adults-home? = true and all-grandparents-home? = true) [
-      if (all-adults-idle? = true and all-adults-home? = true and all-grandparents-home? = true) [
+    (ifelse (all-adults-home? = true and all-old-generation-home? = true) [
+      if (all-adults-idle? = true and all-adults-home? = true and all-old-generation-home? = true) [
         ; people die based on mortality rate
         ask people with [color = red and tested? = false] [
           if (random 100 < mortality-rate) [
@@ -79,8 +79,8 @@ to go
         ]
         ;
         let get-lockdown-time lockdown-days * 150
-        let adults-grandparents (turtle-set adults grandparents)
-        ask adults-grandparents with [infected-time >= get-lockdown-time] [
+        let adults-old-generation (turtle-set adults old-generation)
+        ask adults-old-generation with [infected-time >= get-lockdown-time] [
           set color yellow
           set diagnosis "not-infected"
           set tested? false
@@ -93,37 +93,37 @@ to go
         ask adults with [infected-time >= get-lockdown-time] [
           set can-work? true
         ]
-        ask grandparents with [infected-time >= get-lockdown-time] [
+        ask old-generation with [infected-time >= get-lockdown-time] [
           set go-out? true
         ]
         ask adults with [infected-time > 0 and infected-time < get-lockdown-time] [
           draw-buffer-circle
           draw-contaminated-circle
         ]
-        ask grandparents with [infected-time > 0 and infected-time < get-lockdown-time] [
+        ask old-generation with [infected-time > 0 and infected-time < get-lockdown-time] [
           draw-buffer-circle
           draw-contaminated-circle
         ]
         test-adults
-        test-grandparents
+        test-old-generation
         identify-zones
         check-area-status
       ]
       move-to-workplace
-      move-out-grandparents
+      move-out-old-generation
       ask adults [
         set shopping random 100
       ]
       ]
       [
         move-from-workplace-to-home
-        move-grandparents-home
+        move-old-generation-home
     ])
   ]
   ;if schools open
   if (open-schools? = true or (open-schools? = false and option-1 = true)) [
-    if ((all-adults-home? = true or adult-activity = "going-work") and (all-children-home? = true or children-activity = "going-school") and all-grandparents-home? = true) [
-      if (all-adults-idle? = true and all-adults-home? = true and all-children-idle? = true and all-children-home? = true and all-grandparents-home? = true) [
+    if ((all-adults-home? = true or adult-activity = "going-work") and (all-children-home? = true or children-activity = "going-school") and all-old-generation-home? = true) [
+      if (all-adults-idle? = true and all-adults-home? = true and all-children-idle? = true and all-children-home? = true and all-old-generation-home? = true) [
         ; people die based on mortality rate
         ask people with [color = red and tested? = false] [
           if (random 100 < mortality-rate) [
@@ -149,7 +149,7 @@ to go
         ask children with [infected-time >= get-lockdown-time] [
           set schooling? true
         ]
-        ask grandparents with [infected-time >= get-lockdown-time] [
+        ask old-generation with [infected-time >= get-lockdown-time] [
           set go-out? true
         ]
         ask people with [infected-time > 0 and infected-time < get-lockdown-time] [
@@ -157,13 +157,13 @@ to go
           draw-contaminated-circle
         ]
         test-adults
-        test-grandparents
+        test-old-generation
         test-children
         identify-zones
         check-area-status
       ]
       move-to-workplace
-      move-out-grandparents
+      move-out-old-generation
       if open-schools? = true [
         move-to-school
       ]
@@ -173,7 +173,7 @@ to go
     ]
     if ((all-adults-home? = false or adult-activity = "going-home") and (all-children-home? = false or children-activity = "going-home")) [
       move-from-workplace-to-home
-      move-grandparents-home
+      move-old-generation-home
       if open-schools? = true [
         move-from-school-to-home
       ]
@@ -267,10 +267,10 @@ to initialize-adults
   ]
 end
 
-to initialize-grandparents
-  set all-grandparents-home? true
+to initialize-old-generation
+  set all-old-generation-home? true
   ask houses [
-    hatch-grandparents older-people-per-house [
+    hatch-old-generation older-people-per-house [
       set shape "person"
       set size 0.5
       set has-car? false
@@ -328,13 +328,13 @@ to test-adults
   ]
 end
 
-to test-grandparents
-  ask grandparents with [tested? != true or diagnosis != "infected"] [
+to test-old-generation
+  ask old-generation with [tested? != true or diagnosis != "infected"] [
     (ifelse (random 100 < test-rate)
       [set tested? true]
       [set tested? false])
   ]
-  ask grandparents [
+  ask old-generation [
     (ifelse (color = red)
       [set diagnosis "infected"]
       [set diagnosis "not-infected"])
@@ -391,8 +391,8 @@ to move-to-workplace
   ]
 end
 
-to move-out-grandparents
-  ask grandparents with [go-out? = true] [
+to move-out-old-generation
+  ask old-generation with [go-out? = true] [
     set where-now? "out"
     rt random 10
     lt random 10
@@ -479,8 +479,8 @@ to move-to-market
     [set where-now? "supermarket"])
 end
 
-to move-grandparents-home
-  ask grandparents with [where-now? != "home"] [
+to move-old-generation-home
+  ask old-generation with [where-now? != "home"] [
     let family-place one-of houses with [family-number = [family-number] of myself]
     face family-place
     (ifelse any? houses with [family-number = [family-number] of myself] in-radius 1 [
@@ -492,8 +492,8 @@ to move-grandparents-home
     ])
     spread-disease
   ]
-  if all? grandparents [where-now? = "home"] [
-    set all-grandparents-home? true
+  if all? old-generation [where-now? = "home"] [
+    set all-old-generation-home? true
   ]
 end
 
@@ -527,9 +527,8 @@ to move-from-school-to-home
 end
 
 to spread-disease
-  let people (turtle-set adults grandparents children)
-  if any? people with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius 0.2 [
-    ;Different probabilities of spread when using private and public trnsportation
+  let people (turtle-set adults old-generation children)
+  if any? people with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius spread-radius [
     (ifelse
       has-car? = false and random 100 < public-transport-spread-rate * 100 and color = white [
         set color red
@@ -550,14 +549,14 @@ to mark-sterile-zone
 end
 
 to draw-buffer-circle
-  ask patches with [status != "contaminated"] in-radius (lockdown-radius + 2) [
+  ask patches with [status != "contaminated"] in-radius (lockdown-radius + 3) [
     set pcolor yellow - 3
     set status "buffer"
   ]
 end
 
 to mark-buffer-zone
-  let people (turtle-set adults grandparents children)
+  let people (turtle-set adults old-generation children)
   ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-buffer-circle
   ]
@@ -571,7 +570,7 @@ to draw-contaminated-circle
 end
 
 to mark-contaminated-zone
-  let people (turtle-set adults grandparents children)
+  let people (turtle-set adults old-generation children)
   ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
     draw-contaminated-circle
   ]
@@ -593,7 +592,7 @@ to check-area-status
     if ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set can-work? false]
   ]
-  ask grandparents [
+  ask old-generation [
     if ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set go-out? false]
   ]
@@ -610,13 +609,13 @@ to check-area-status
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-224
-14
-681
-472
+199
+10
+671
+483
 -1
 -1
-7.361
+7.61
 1
 10
 1
@@ -637,10 +636,10 @@ ticks
 30.0
 
 BUTTON
+16
 13
-11
-81
-66
+99
+46
 NIL
 setup
 NIL
@@ -654,10 +653,10 @@ NIL
 1
 
 BUTTON
-16
-73
-83
-127
+15
+48
+99
+81
 NIL
 go
 T
@@ -671,10 +670,10 @@ NIL
 1
 
 SLIDER
-13
-322
-215
-355
+10
+284
+190
+317
 number-of-workplaces
 number-of-workplaces
 1
@@ -686,10 +685,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-13
-132
-215
-165
+12
+87
+191
+120
 number-of-houses
 number-of-houses
 1
@@ -701,10 +700,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-12
-169
-213
-202
+9
+124
+191
+157
 adults-per-house
 adults-per-house
 1
@@ -716,10 +715,10 @@ NIL
 HORIZONTAL
 
 PLOT
-693
-255
-1058
-418
+684
+209
+1067
+428
 SIR model
 Time
 Number of people
@@ -731,16 +730,16 @@ true
 true
 "" ""
 PENS
-"Susceptible" 1.0 0 -13840069 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = white])"
-"Infected" 1.0 0 -2674135 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = red])"
-"Recovered" 1.0 0 -14070903 true "" "let people (turtle-set adults grandparents children)\nplot (count people with [color = yellow])"
-"Dead" 1.0 0 -7500403 true "" "plot (dead-count)"
+"Susceptible" 1.0 0 -13840069 true "" "let people (turtle-set adults old-generation children)\nplot (count people with [color = white])"
+"Infected" 1.0 0 -2674135 true "" "let people (turtle-set adults old-generation children)\nplot (count people with [color = red])"
+"Recovered" 1.0 0 -14070903 true "" "let people (turtle-set adults old-generation children)\nplot (count people with [color = yellow])"
+"Dead" 1.0 0 -7500403 true "" "plot dead-count"
 
 MONITOR
-921
-425
-995
-470
+915
+433
+993
+478
 recovered %
 count turtles with [shape = \"person\" and color = yellow] / (population) * 100
 0
@@ -748,10 +747,10 @@ count turtles with [shape = \"person\" and color = yellow] / (population) * 100
 11
 
 MONITOR
-764
-424
-844
-469
+756
+432
+834
+477
 susceptible %
 count turtles with [shape = \"person\" and color = white] / (population) * 100
 0
@@ -759,10 +758,10 @@ count turtles with [shape = \"person\" and color = white] / (population) * 100
 11
 
 INPUTBOX
-93
-11
-206
-89
+107
+14
+192
+83
 initial-infected
 10.0
 1
@@ -770,10 +769,10 @@ initial-infected
 Number
 
 SLIDER
-12
-361
-215
-394
+9
+324
+191
+357
 number-of-supermarkets
 number-of-supermarkets
 1
@@ -785,10 +784,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-851
-425
-917
-470
+841
+433
+910
+478
 infected %
 count turtles with [shape = \"person\" and color = red] / (population) * 100
 0
@@ -796,27 +795,12 @@ count turtles with [shape = \"person\" and color = red] / (population) * 100
 11
 
 SLIDER
-699
-98
-882
-131
+687
+93
+862
+126
 use-of-private-transport
 use-of-private-transport
-0
-100
-60.0
-1
-1
-%
-HORIZONTAL
-
-SLIDER
-889
-12
-1054
-45
-go-shopping
-go-shopping
 0
 100
 40.0
@@ -826,10 +810,25 @@ go-shopping
 HORIZONTAL
 
 SLIDER
-702
-11
-881
-44
+686
+53
+839
+86
+go-shopping
+go-shopping
+0
+100
+60.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+688
+12
+836
+45
 test-rate
 test-rate
 0
@@ -841,10 +840,10 @@ test-rate
 HORIZONTAL
 
 MONITOR
-694
-425
-757
-470
+683
+432
+750
+477
 total
 population
 17
@@ -852,10 +851,10 @@ population
 11
 
 SLIDER
-13
-283
-212
-316
+9
+244
+189
+277
 number-of-schools
 number-of-schools
 1
@@ -867,10 +866,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-12
-207
-213
-240
+10
+165
+190
+198
 children-per-house
 children-per-house
 0
@@ -882,10 +881,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-702
-139
-883
-172
+872
+93
+989
+126
 open-schools?
 open-schools?
 0
@@ -893,10 +892,10 @@ open-schools?
 -1000
 
 SLIDER
-700
-54
-882
-87
+842
+12
+992
+45
 lockdown-days
 lockdown-days
 1
@@ -908,10 +907,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-14
-244
-217
-277
+11
+202
+188
+235
 older-people-per-house
 older-people-per-house
 0
@@ -923,50 +922,50 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-47
-452
-197
-470
+43
+418
+193
+436
 NIL
 11
 0.0
 1
 
 SLIDER
-12
+8
+404
+190
 437
-213
-470
 private-transport-spread-rate
 private-transport-spread-rate
 0
 1
-0.3
+0.4
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-12
-400
-212
-433
+8
+366
+189
+399
 public-transport-spread-rate
 public-transport-spread-rate
 0
 1
-0.5
+0.6
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-801
-180
-1057
-213
+782
+133
+994
+166
 schools-close-when-infected-%-at
 schools-close-when-infected-%-at
 0
@@ -978,10 +977,10 @@ schools-close-when-infected-%-at
 HORIZONTAL
 
 SWITCH
-701
-180
-791
-213
+686
+133
+776
+166
 option-1
 option-1
 1
@@ -989,10 +988,10 @@ option-1
 -1000
 
 SWITCH
-702
-216
-792
-249
+686
+168
+776
+201
 option-2
 option-2
 1
@@ -1000,10 +999,10 @@ option-2
 -1000
 
 SLIDER
-801
-216
-1057
-249
+782
+168
+994
+201
 schools-open-when-infected-%-at
 schools-open-when-infected-%-at
 0
@@ -1016,9 +1015,9 @@ HORIZONTAL
 
 MONITOR
 999
-423
-1056
-468
+433
+1070
+478
 dead %
 dead-count / population * 100
 1
@@ -1026,33 +1025,48 @@ dead-count / population * 100
 11
 
 SLIDER
-93
-94
-210
-127
+7
+444
+189
+477
 mortality-rate
 mortality-rate
 0
 100
-30.0
+0.0
 1
 1
 %
 HORIZONTAL
 
 SLIDER
-889
-55
-1055
-88
+843
+53
+992
+86
 lockdown-radius
 lockdown-radius
 0
 10
-3.0
+4.0
 1
 1
 / 10
+HORIZONTAL
+
+SLIDER
+8
+493
+180
+526
+spread-radius
+spread-radius
+0
+1
+0.2
+0.05
+1
+NIL
 HORIZONTAL
 
 @#$#@#$#@
