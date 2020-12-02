@@ -85,7 +85,7 @@ to go
           set diagnosis "not-infected"
           set tested? false
           set infected-time 0
-          ask patches with [status != "not-contaminated"] in-radius (lockdown-radius + 2) [
+          ask patches with [status != "not-contaminated"] in-radius (lockdown-radius + 3) [
             set pcolor green - 4
             set status "not-contaminated"
           ]
@@ -138,7 +138,7 @@ to go
           set diagnosis "not-infected"
           set tested? false
           set infected-time 0
-          ask patches with [status != "not-contaminated"] in-radius (lockdown-radius + 2) [
+          ask patches with [status != "not-contaminated"] in-radius (lockdown-radius + 3) [
             set pcolor green - 4
             set status "not-contaminated"
           ]
@@ -611,11 +611,11 @@ end
 GRAPHICS-WINDOW
 199
 10
-671
-483
+704
+516
 -1
 -1
-7.61
+8.15
 1
 10
 1
@@ -715,10 +715,10 @@ NIL
 HORIZONTAL
 
 PLOT
-684
-209
-1067
-428
+713
+214
+1095
+462
 SIR model
 Time
 Number of people
@@ -736,10 +736,10 @@ PENS
 "Dead" 1.0 0 -7500403 true "" "plot dead-count"
 
 MONITOR
-915
-433
-993
-478
+944
+467
+1022
+512
 recovered %
 count turtles with [shape = \"person\" and color = yellow] / (population) * 100
 0
@@ -747,10 +747,10 @@ count turtles with [shape = \"person\" and color = yellow] / (population) * 100
 11
 
 MONITOR
-756
-432
-834
-477
+785
+466
+863
+511
 susceptible %
 count turtles with [shape = \"person\" and color = white] / (population) * 100
 0
@@ -784,10 +784,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-841
-433
-910
-478
+870
+467
+939
+512
 infected %
 count turtles with [shape = \"person\" and color = red] / (population) * 100
 0
@@ -795,10 +795,10 @@ count turtles with [shape = \"person\" and color = red] / (population) * 100
 11
 
 SLIDER
-687
-93
-862
-126
+716
+95
+891
+128
 use-of-private-transport
 use-of-private-transport
 0
@@ -810,10 +810,10 @@ use-of-private-transport
 HORIZONTAL
 
 SLIDER
-686
-53
-839
-86
+715
+55
+868
+88
 go-shopping
 go-shopping
 0
@@ -825,10 +825,10 @@ go-shopping
 HORIZONTAL
 
 SLIDER
-688
-12
-836
-45
+717
+14
+865
+47
 test-rate
 test-rate
 0
@@ -840,10 +840,10 @@ test-rate
 HORIZONTAL
 
 MONITOR
-683
-432
-750
-477
+712
+466
+779
+511
 total
 population
 17
@@ -881,10 +881,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-872
-93
-989
-126
+901
+95
+1018
+128
 open-schools?
 open-schools?
 0
@@ -892,10 +892,10 @@ open-schools?
 -1000
 
 SLIDER
-842
-12
-992
-45
+871
+14
+1021
+47
 lockdown-days
 lockdown-days
 1
@@ -940,7 +940,7 @@ private-transport-spread-rate
 private-transport-spread-rate
 0
 1
-0.4
+0.2
 0.1
 1
 NIL
@@ -955,17 +955,17 @@ public-transport-spread-rate
 public-transport-spread-rate
 0
 1
-0.6
+0.4
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-782
-133
-994
-166
+811
+135
+1023
+168
 schools-close-when-infected-%-at
 schools-close-when-infected-%-at
 0
@@ -977,10 +977,10 @@ schools-close-when-infected-%-at
 HORIZONTAL
 
 SWITCH
-686
-133
-776
-166
+715
+135
+805
+168
 option-1
 option-1
 1
@@ -988,10 +988,10 @@ option-1
 -1000
 
 SWITCH
-686
-168
-776
-201
+715
+170
+805
+203
 option-2
 option-2
 1
@@ -999,10 +999,10 @@ option-2
 -1000
 
 SLIDER
-782
-168
-994
-201
+811
+170
+1023
+203
 schools-open-when-infected-%-at
 schools-open-when-infected-%-at
 0
@@ -1014,10 +1014,10 @@ schools-open-when-infected-%-at
 HORIZONTAL
 
 MONITOR
-999
-433
-1070
-478
+1028
+467
+1099
+512
 dead %
 dead-count / population * 100
 1
@@ -1033,17 +1033,17 @@ mortality-rate
 mortality-rate
 0
 100
-0.0
+1.0
 1
 1
 %
 HORIZONTAL
 
 SLIDER
-843
-53
-992
-86
+872
+55
+1021
+88
 lockdown-radius
 lockdown-radius
 0
@@ -1056,14 +1056,14 @@ HORIZONTAL
 
 SLIDER
 8
-493
-180
-526
+483
+189
+516
 spread-radius
 spread-radius
 0
 1
-0.2
+0.1
 0.05
 1
 NIL
