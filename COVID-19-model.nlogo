@@ -940,7 +940,7 @@ private-transport-spread-rate
 private-transport-spread-rate
 0
 1
-0.2
+0.1
 0.1
 1
 NIL
@@ -955,7 +955,7 @@ public-transport-spread-rate
 public-transport-spread-rate
 0
 1
-0.4
+0.3
 0.1
 1
 NIL
@@ -1063,8 +1063,8 @@ spread-radius
 spread-radius
 0
 1
-0.1
-0.05
+0.06
+0.01
 1
 NIL
 HORIZONTAL
