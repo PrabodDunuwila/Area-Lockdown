@@ -1,21 +1,94 @@
-globals[counter all-adults-home? all-adults-idle? all-old-generation-home? all-children-home? all-children-idle? adult-activity children-activity population dead-count]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Title:     COVID-19-Policy-Model
+;; Author:    Prabod Madushan Dunuwila
+;; Email:     praboddunuwila@gmail.com
+;; Version:   1
+;; Date:      December 2020
+;; Copyright: 2020 Prabod Madushan Dunuwila
+;; This work is licensed under MIT License
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-breed [children child]
-breed [adults adult]
-breed [old-generation old-person]
-breed [houses house]
-breed [workplaces workplace]
-breed [supermarkets supermarket]
-breed [schools school]
+globals [
+  counter                          ;;A counter used when generating agents
+  population                       ;;Total population
+  dead-count                       ;;Total count of dead people
+  all-children-home?               ;;Children at home? {True, False}
+  all-children-idle?               ;;Children are idle? {True, False}
+  children-activity                ;;What children are doing {going-school, going-home}
+  all-adults-home?                 ;;All adults at their home? {True, False}
+  all-adults-idle?                 ;;All adults are idle? {True, False}
+  adult-activity                   ;;What adluts are doing {going-work, going-home}
+  all-old-generation-home?         ;;Older people at home? {True, False}
+]
 
-adults-own[family-number workplace-number supermarket-number diagnosis where-now? has-car? shopping tested? can-work? idle? infected-time activity]
-children-own[family-number school-number diagnosis where-now? idle? tested? infected-time schooling? activity has-car?]
-old-generation-own[family-number diagnosis where-now? tested? infected-time go-out? has-car?]
-houses-own[family-number]
-workplaces-own[workplace-number building-status]
-supermarkets-own[supermarket-number building-status]
-schools-own[school-number building-status]
-patches-own[status]
+breed [children child]             ;;Agents who go to schools/universities
+breed [adults adult]               ;;Agents who are parents and go to work
+breed [old-generation old-person]  ;;Agents who are retired
+breed [houses house]               ;;Houses
+breed [workplaces workplace]       ;;Place where adults work
+breed [supermarkets supermarket]   ;;Place where people go to buy commidities
+breed [schools school]             ;;Schools/Universities
+
+houses-own [
+  family-number                    ;;An identification number for house
+]
+
+workplaces-own [
+  workplace-number                 ;;An identification number for workplace
+  building-status                  ;;Whether building in a contaminated zone {True, False}
+]
+
+supermarkets-own [
+  supermarket-number               ;;An identification number for supermarket
+  building-status                  ;;Whether building in a contaminated zone {True, False}
+]
+
+schools-own [
+  school-number                    ;;An identification number for school
+  building-status                  ;;Whether building in a contaminated zone {True, False}
+]
+
+patches-own [
+  status                           ;;Status of the patch {sterile, buffer, contaminated}
+]
+
+adults-own [
+  family-number                    ;;Family identification number that agent belongs
+  workplace-number                 ;;The workplace of the agent
+  supermarket-number               ;;Identification of where to go shopping
+  diagnosis                        ;;Whether infected or not {infected, not-infected}
+  where-now?                       ;;Keep track of the agent location
+  has-car?                         ;;Own a car to travel {True, False}
+  shopping                         ;;Go for shopping {True, False}
+  tested?                          ;;Tested for virus {True, False}
+  can-work?                        ;;Can work if not in a contaminated zone
+  idle?                            ;;Currently moving or at a specific location {True, False}
+  infected-time                    ;;Total time of infected
+  activity                         ;;Current activity doing
+]
+
+children-own [
+  family-number                    ;;Family identification number that agent belongs
+  school-number                    ;;The school of the child
+  diagnosis                        ;;Whether infected or not {infected, not-infected}
+  where-now?                       ;;Keep track of the agent location
+  idle?                            ;;Currently moving or at a specific location {True, False}
+  tested?                          ;;Tested for virus {True, False}
+  infected-time                    ;;Total time of infected
+  schooling?                       ;;Can go to school if not in a contaminated zone
+  activity                         ;;Current activity doing
+  has-car?                         ;;Own a car to travel {True, False}
+]
+
+old-generation-own [
+  family-number                    ;;Family identification number that agent belongs
+  diagnosis                        ;;Whether infected or not {infected, not-infected}
+  where-now?                       ;;Keep track of the agent location
+  tested?                          ;;Tested for virus {True, False}
+  infected-time                    ;;Total time of infected
+  go-out?                          ;;Can go out if not in a contaminated zone
+  has-car?                         ;;Own a car to travel {True, False}
+]
 
 to setup
   clear-all
@@ -24,10 +97,14 @@ to setup
   build-workplaces
   initialize-adults
   initialize-old-generation
+  ;;If the schools are open we have to build schools, initialize children.
+  ;;If schools are closed, then set the option-1 and option-2 provided in
+  ;;the interface to 'false', since they will not be used.
   ifelse (open-schools? = true)[
     build-schools
     initialize-children
-    set population (children-per-house + adults-per-house + older-people-per-house) * number-of-houses
+    set population (children-per-house + adults-per-house + older-people-per-house)
+                    * number-of-houses
   ][
     set option-1 false
     set option-2 false
@@ -44,29 +121,33 @@ to go
 
   let people (turtle-set adults old-generation children)
 
+  ;;If all people are in the state of not-infected, then stop the model.
   if all? people [diagnosis = "not-infected"] [
     stop
   ]
 
+  ;;Increment the infected time of 'infected' and 'tested' = true agents
   ask people with [diagnosis = "infected" and tested? = true] [
     set infected-time infected-time + 1
   ]
 
-  ;option 1 policy - close schools at x% infected
+  ;;Option 1 policy: close schools when there are more than or equal amount of x% infected people
+  ;;out of total people in the community.
   if option-1 = true and all-children-home? = true [
     if ( count people with [color = red] / (count people) * 100 >= schools-close-when-infected-%-at ) [
       set open-schools? false
     ]
   ]
 
-  ;option 2 policy - open schools at x% infected
+  ;;Option 2 policy: Open schools when there are less than or equal amount of x% infected people
+  ;;out of total people in the community.
   if option-2 = true and all-children-home? = true [
     if ( count people with [color = red] / (count people) * 100 <= schools-open-when-infected-%-at ) [
       set open-schools? true
     ]
   ]
 
-  ;if schools closed at the begining
+  ;;If schools are closed at the initial setup of the model
   if (open-schools? = false  and option-1 = false) [
     (ifelse (all-adults-home? = true and all-old-generation-home? = true) [
       if (all-adults-idle? = true and all-adults-home? = true and all-old-generation-home? = true) [
@@ -120,7 +201,7 @@ to go
         move-old-generation-home
     ])
   ]
-  ;if schools open
+  ;;If schools are open at the initial setup of the model
   if (open-schools? = true or (open-schools? = false and option-1 = true)) [
     if ((all-adults-home? = true or adult-activity = "going-work") and (all-children-home? = true or children-activity = "going-school") and all-old-generation-home? = true) [
       if (all-adults-idle? = true and all-adults-home? = true and all-children-idle? = true and all-children-home? = true and all-old-generation-home? = true) [
@@ -542,39 +623,36 @@ to spread-disease
 end
 
 to mark-sterile-zone
+  ;;Set the color of sterile zone as green.
   ask patches [
     set pcolor green - 4
     set status "not-contaminated"
   ]
 end
 
-to draw-buffer-circle
-  ask patches with [status != "contaminated"] in-radius (lockdown-radius + 3) [
-    set pcolor yellow - 3
-    set status "buffer"
-  ]
-end
-
 to mark-buffer-zone
+  ;;Draw the buffer zone by drawing a yellow circle around the contaminated zone.
   let people (turtle-set adults old-generation children)
   ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    draw-buffer-circle
-  ]
-end
-
-to draw-contaminated-circle
-  ask patches in-radius lockdown-radius [
-    set pcolor red - 3
-    set status "contaminated"
+    ask patches with [status != "contaminated"] in-radius (lockdown-radius + 3) [
+      set pcolor yellow - 3
+      set status "buffer"
+    ]
   ]
 end
 
 to mark-contaminated-zone
+  ;;Draw the contaminated zone by drawing a red circle in the area of infected and tested
+  ;;positive individual.
   let people (turtle-set adults old-generation children)
   ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    draw-contaminated-circle
+    ask patches in-radius lockdown-radius [
+      set pcolor red - 3
+      set status "contaminated"
+    ]
   ]
-  ; when an infected person is identified, his/her all relatives are tested.
+  ;;When an infected person is identified, assume that his/her all close by living
+  ;;neighbours are tested.
   ask people [
     if ([pcolor] of one-of patches in-radius 1 = red - 3 ) [
       set tested? true
@@ -583,11 +661,15 @@ to mark-contaminated-zone
 end
 
 to identify-zones
+  ;;When an infected peson is tested positive, then the area around the individual is
+  ;;marked as a contaminated zone, and the area around contaminated as a buffer zone.
   mark-buffer-zone
   mark-contaminated-zone
 end
 
 to check-area-status
+  ;;If agents are in a contaminated zone, then they cannot move and engage in their
+  ;;daily activities.
   ask adults [
     if ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set can-work? false]
@@ -600,6 +682,8 @@ to check-area-status
     if ([pcolor] of one-of patches in-radius 1 = red - 3 )
       [set schooling? false]
   ]
+  ;;If buildings are located inside a contaminated zone, then their status is set to
+  ;;contaminted such that agents will not go there.
   let buildings (turtle-set workplaces supermarkets schools)
   ask buildings [
     ifelse ([pcolor] of one-of patches in-radius 1 = red - 3 )
