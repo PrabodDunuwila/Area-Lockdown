@@ -151,14 +151,15 @@ to go
   if (open-schools? = false  and option-1 = false) [
     (ifelse (all-adults-home? = true and all-old-generation-home? = true) [
       if (all-adults-idle? = true and all-adults-home? = true and all-old-generation-home? = true) [
-        ; people die based on mortality rate
+        ;;People die based on mortality rate
         ask people with [color = red and tested? = false] [
           if (random 100 < mortality-rate) [
             set dead-count dead-count + 1
             die
           ]
         ]
-        ;
+        ;;Check for the infected period and after the lockdown is lifted mark agents as
+        ;;recovered.
         let get-lockdown-time lockdown-days * 150
         let adults-old-generation (turtle-set adults old-generation)
         ask adults-old-generation with [infected-time >= get-lockdown-time] [
@@ -171,12 +172,14 @@ to go
             set status "not-contaminated"
           ]
         ]
+        ;;After the lockdown agents can engage in their daily activities.
         ask adults with [infected-time >= get-lockdown-time] [
           set can-work? true
         ]
         ask old-generation with [infected-time >= get-lockdown-time] [
           set go-out? true
         ]
+        ;;Draw the contaminated and buffer zones when an infected patient is identified.
         ask adults with [infected-time > 0 and infected-time < get-lockdown-time] [
           draw-buffer-circle
           draw-contaminated-circle
@@ -190,12 +193,14 @@ to go
         identify-zones
         check-area-status
       ]
+      ;;Agents engage in daily activities.
       move-to-workplace
       move-out-old-generation
       ask adults [
         set shopping random 100
       ]
       ]
+      ;;After adults have moved to their workplaces, then agents go back home.
       [
         move-from-workplace-to-home
         move-old-generation-home
@@ -212,7 +217,8 @@ to go
             die
           ]
         ]
-        ;
+        ;;Check for the infected period and after the lockdown is lifted mark agents as
+        ;;recovered.
         let get-lockdown-time lockdown-days * 150
         ask people with [infected-time >= get-lockdown-time] [
           set color yellow
@@ -224,6 +230,7 @@ to go
             set status "not-contaminated"
           ]
         ]
+        ;;After the lockdown agents can engage in their daily activities.
         ask adults with [infected-time >= get-lockdown-time] [
           set can-work? true
         ]
@@ -233,6 +240,7 @@ to go
         ask old-generation with [infected-time >= get-lockdown-time] [
           set go-out? true
         ]
+        ;;Draw the contaminated and buffer zones when an infected patient is identified.
         ask people with [infected-time > 0 and infected-time < get-lockdown-time] [
           draw-buffer-circle
           draw-contaminated-circle
@@ -243,6 +251,7 @@ to go
         identify-zones
         check-area-status
       ]
+      ;;Agents engage in daily activities.
       move-to-workplace
       move-out-old-generation
       if open-schools? = true [
@@ -252,6 +261,7 @@ to go
         set shopping random 100
       ]
     ]
+    ;;After adults and children have moved to their workplaces and schools, then agents go back home.
     if ((all-adults-home? = false or adult-activity = "going-home") and (all-children-home? = false or children-activity = "going-home")) [
       move-from-workplace-to-home
       move-old-generation-home
@@ -264,6 +274,7 @@ to go
 end
 
 to build-houses
+  ;;Create houses based on the 'number-of-houses' parameter in the interface
   set-default-shape houses "house"
   set counter 1
   create-houses number-of-houses[
@@ -276,6 +287,7 @@ to build-houses
 end
 
 to build-workplaces
+  ;;Create workplaces based on the 'number-of-workplaces' parameter in the interface
   set-default-shape workplaces "house"
   set counter 1
   create-workplaces number-of-workplaces[
@@ -288,6 +300,7 @@ to build-workplaces
 end
 
 to build-supermarkets
+  ;;Create supermarkets based on the 'number-of-supermarkets' parameter in the interface
   set-default-shape supermarkets "house"
   set counter 1
   create-supermarkets number-of-supermarkets[
@@ -300,6 +313,7 @@ to build-supermarkets
 end
 
 to build-schools
+  ;;Create schools based on the 'number-of-schools' parameter in the interface
   set-default-shape schools "house"
   set counter 1
   create-schools number-of-schools[
@@ -312,6 +326,7 @@ to build-schools
 end
 
 to initialize-adults
+  ;;Initialize adults for each house based on the 'adults-per-house' parameter.
   set counter initial-infected
   set all-adults-home? true
   ask houses [
@@ -349,6 +364,7 @@ to initialize-adults
 end
 
 to initialize-old-generation
+  ;;Initialize older people for each house based on the 'older-people-per-house' parameter.
   set all-old-generation-home? true
   ask houses [
     hatch-old-generation older-people-per-house [
@@ -369,6 +385,7 @@ to initialize-old-generation
 end
 
 to initialize-children
+  ;;Initialize children for each house based on the 'children-per-house' parameter.
   set all-children-home? true
   ask houses [
     hatch-children children-per-house [
@@ -394,6 +411,7 @@ to initialize-children
 end
 
 to test-adults
+  ;;Testing process for adults
   ask adults with [tested? != true or diagnosis != "infected"] [   ;de morgan
     (ifelse (random 100 < test-rate)
       [set tested? true]
@@ -410,6 +428,7 @@ to test-adults
 end
 
 to test-old-generation
+  ;;Testing process for older genration
   ask old-generation with [tested? != true or diagnosis != "infected"] [
     (ifelse (random 100 < test-rate)
       [set tested? true]
@@ -426,6 +445,7 @@ to test-old-generation
 end
 
 to test-children
+  ;;Testing process for children
   ask children with [tested? != true or diagnosis != "infected"] [
     (ifelse (random 100 < test-rate)
       [set tested? true]
@@ -442,6 +462,8 @@ to test-children
 end
 
 to move-to-workplace
+  ;;At the start of a day, if the workplace is not in a contaminated zone and if the adult
+  ;;is allowed to go to work, then face the direction of the workplace and move there.
   ask adults [
     set all-adults-idle? false
     let adult-workplace one-of workplaces with [workplace-number = [workplace-number] of myself]
@@ -473,6 +495,7 @@ to move-to-workplace
 end
 
 to move-out-old-generation
+  ;;The old people who are going out, will randomly walk in the neighbourhood.
   ask old-generation with [go-out? = true] [
     set where-now? "out"
     rt random 10
@@ -483,6 +506,8 @@ to move-out-old-generation
 end
 
 to move-to-school
+  ;;At the start of a day, if the school is not in a contaminated zone and if the child
+  ;;is allowed to go to school, then face the direction of the school and move there.
   ask children [
     set all-children-idle? false
     let child-school one-of schools with [school-number = [school-number] of myself]
@@ -514,6 +539,8 @@ to move-to-school
 end
 
 to move-from-workplace-to-home
+  ;;To move adults from workplace to their relevant house, first face the direction of the
+  ;;house and move there.
   ask adults [
     if (shopping < go-shopping and where-now? = "workplace")
       [move-to-market]
@@ -545,6 +572,8 @@ to move-from-workplace-to-home
 end
 
 to move-to-market
+  ;;If an agent want to move to market, then face the direction of the market place and
+  ;;move towards it.
   let market-place one-of supermarkets with [supermarket-number = [supermarket-number] of myself]
   (ifelse [building-status] of market-place != "contaminated" [
     face market-place
@@ -561,6 +590,8 @@ to move-to-market
 end
 
 to move-old-generation-home
+  ;;To move older people to their relevant house, first face the direction of the
+  ;;house and move there.
   ask old-generation with [where-now? != "home"] [
     let family-place one-of houses with [family-number = [family-number] of myself]
     face family-place
@@ -579,6 +610,8 @@ to move-old-generation-home
 end
 
 to move-from-school-to-home
+  ;;To move children from schools to their relevant house, first face the direction of the
+  ;;house and move there.
   ask children [
     if (where-now? = "school") [
       let family-place one-of houses with [family-number = [family-number] of myself]
@@ -608,6 +641,8 @@ to move-from-school-to-home
 end
 
 to spread-disease
+  ;;Spread of the pandemic around a infected agent based on the 'spread-redius' set at the interface.
+  ;;And the spread rate can be differ based on whether the agent using private/public transportation.
   let people (turtle-set adults old-generation children)
   if any? people with [color = red and shape = "person" and tested? = false and diagnosis = "infected"] in-radius spread-radius [
     (ifelse
@@ -630,14 +665,27 @@ to mark-sterile-zone
   ]
 end
 
+to draw-buffer-circle
+  ;;Change color of patches in a buffer zone
+  ask patches with [status != "contaminated"] in-radius (lockdown-radius + 3) [
+    set pcolor yellow - 3
+    set status "buffer"
+  ]
+end
+
 to mark-buffer-zone
   ;;Draw the buffer zone by drawing a yellow circle around the contaminated zone.
   let people (turtle-set adults old-generation children)
   ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    ask patches with [status != "contaminated"] in-radius (lockdown-radius + 3) [
-      set pcolor yellow - 3
-      set status "buffer"
-    ]
+    draw-buffer-circle
+  ]
+end
+
+to draw-contaminated-circle
+  ;;Change color of patches in a contaminated zone
+  ask patches in-radius lockdown-radius [
+    set pcolor red - 3
+    set status "contaminated"
   ]
 end
 
@@ -646,10 +694,7 @@ to mark-contaminated-zone
   ;;positive individual.
   let people (turtle-set adults old-generation children)
   ask people with [tested? = true and diagnosis = "infected" and where-now? = "home"] [
-    ask patches in-radius lockdown-radius [
-      set pcolor red - 3
-      set status "contaminated"
-    ]
+    draw-contaminated-circle
   ]
   ;;When an infected person is identified, assume that his/her all close by living
   ;;neighbours are tested.
@@ -971,7 +1016,7 @@ SWITCH
 128
 open-schools?
 open-schools?
-0
+1
 1
 -1000
 
@@ -1156,53 +1201,65 @@ HORIZONTAL
 @#$#@#$#@
 ## WHAT IS IT?
 
-;;Randomly place the houses in the area based on input 'number-of-houses'
-;;Randomly place work-places in the area based on input 'number-of-workplaces'
-;;We can change the number of employees per house using 'employees-per-house'
-;;
-;;We can set the initial infected count using 'initial-infected'
-;;We can change the spread rate using 'spread-rate'
-;;
-;;Currently model works for only one iteration : goto workplace and go back home.
-;;
-;;Total number of employees will be based on employees per house and number
-;;of houses. Currently all the employees including infected and non infected
-;;employees leave the houses and goto work. Then come back to the same home
-;;assigned. The infection is spread when a non-infected person meets a
-;;infected person. And it may depend on the spread-rate and the distance of
-;;infected person with the non infected person.
+
+The primary purpose of this abstract model is to demonstrate and explore the effect of  policies based on different lockdown and testing rates to control the COVID-19 pandemic in the community. Identifying policies plays a major role in controlling the pandemic, since a delay in enforcing the policies can cause huge caos and community transmission may go out of control. Through the model we can change different parameters to explore different strategies. This model is abstracted using a representative Sri Lankan population.
 
 ## HOW IT WORKS
 
-(what rules the agents use to create the overall behavior of the model)
+The model uses,
+- The SIR concept for the pandemic transmission 
+- The concept of a surgical theatre where they seperate the contaminated environment
+
+The simulation uses a Susceptible-Infectious-Recovered (SIR) model of a viral infection process. The model is initialized with a 'initial-infected' where those agents are  infected(red) at the initialization. And all other agents are susceptible(white). And agents will be recovered(yellow) after the lockdown period. Based on the 'mortality-rate' agents will die. 
+
+The environment is divided into 3 categories based on their characteristics of having an infected individual in that area. The concept is based on the surgical theatre to avoid further transmission and contain the pandemic in an infected area. The 3 zones identified are,
+- Sterile zone(green) : No infected individuals were found for a reasonable period.
+- Buffer zone(yellow) : The zone between sterile and contaminated zone. 
+- Contaminated zone(red) : Infected people are living in this zone.
+
+The simulation stops when there are no infectious agents.
 
 ## HOW TO USE IT
 
-(how to use the model, including a description of each of the items in the Interface tab)
+The user controls are discussed in this section.
+
+- initial-infected : initial infected agents in the community
+- number-of-houses : number of houses in the model
+- children-per-house : number of children per house
+- adults-per-house : number of adults per house
+- older-people-per-house : number of older people per house
+- number-of-workplaces : number of workplaces in the model
+- number-of-schools : number of schools in the model
+- number-of-supermarkets : number of markets in the model
+- public-transport-spread-rate : define the rate of spread when using public transport
+- private-transport-spread-rate : define the rate of spread when using private transport
+- mortality-rate : mortality rate for the agents
+- spread-radius : the radius which a susceptible can be get infected when get closer to an infected
+- test-rate : rate of doing tests to identify infected patients
+- lockdown-days : the number of days of lockdown 
+- lockdown-radius : the radius which the lockdown is effective when an infected patient is found
+- go-shopping : the percentage of people who go shopping
+- use-of-private-transport : the percentage of people who use private transportation means for travelling
+- open-schools? : can be set to either schools to open or close 
+- option-1 : to make effective 'schools-close-when-infected-%-at' policy
+- schools-close-when-infected-%-at : a percentage can be set to close schools when there are x% of infected people
+- option-2 : to make effective 'schools-open-when-infected-%-at' policy
+- schools-open-when-infected-%-at : a percentage can be set to open schools when there are only x% of infected people
 
 ## THINGS TO NOTICE
 
-(suggested things for the user to notice while running the model)
-
-## THINGS TO TRY
-
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+The plot of 'SIR model', can be used to identify the patterns of pandemic spread and it shows the variations of the number of susceptible, infected, recovered or dead agents in the community.
 
 ## EXTENDING THE MODEL
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
-
-## NETLOGO FEATURES
-
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
-
-## RELATED MODELS
-
-(models in the NetLogo Models Library and elsewhere which are of related interest)
+Adding different policies to buffer zones
+Improving the SIR to SEIR
 
 ## CREDITS AND REFERENCES
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+GIthub repository : https://github.com/PrabodDunuwila/COVID19-Policy-Model
+Copyright (c) 2020 Prabod Madushan Dunuwila
+This work is licensed under the MIT License
 @#$#@#$#@
 default
 true
